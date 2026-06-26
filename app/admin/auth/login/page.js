@@ -36,8 +36,8 @@ export default function AdminLoginPage() {
       const res = await adminLoginAction(data);
       if (res.success) {
         toast.success(res.message);
-        router.push(res.redirect);
         router.refresh();
+        router.push(res.redirect);
       } else {
         toast.error(res.message);
       }

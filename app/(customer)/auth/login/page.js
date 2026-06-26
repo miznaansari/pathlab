@@ -91,8 +91,8 @@ function LoginForm() {
             text: data.message,
           });
         } else {
-          router.push(data.redirect);
           router.refresh();
+          router.push(data.redirect);
         }
       } else {
         toast.error(data.message);
@@ -136,8 +136,8 @@ function LoginForm() {
       const res = await loginAction(data);
       if (res.success) {
         toast.success(res.message);
-        router.push(res.redirect);
         router.refresh();
+        router.push(res.redirect);
       } else {
         toast.error(res.message);
         if (res.status === "unverified") {
