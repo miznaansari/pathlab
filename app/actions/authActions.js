@@ -188,7 +188,7 @@ export async function loginAction(formData) {
     // Set Customer session_token cookie
     cookieStore.set("session_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to false to support local HTTP network testing on mobile devices
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: "/",
@@ -263,7 +263,7 @@ export async function adminLoginAction(formData) {
     // Set admin_session_token cookie
     cookieStore.set("admin_session_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to false to support local HTTP network testing on mobile devices
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: "/",
