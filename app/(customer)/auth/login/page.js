@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { loginAction } from "@/app/actions/authActions";
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +37,26 @@ function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Handle Firebase Sign-in Redirect Result on page mount (Mobile fallback)
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        setIsGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const idToken = await result.user.getIdToken();
+          await processGoogleSignInToken(idToken);
+        }
+      } catch (error) {
+        console.error("Redirect Sign-In error:", error);
+        handleGoogleError(error);
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, []);
+
   useEffect(() => {
     if (searchParams.get("verified") === "true") {
       toast.success("Email verified successfully! Please wait for Admin approval.");
@@ -50,6 +70,64 @@ function LoginForm() {
       toast.error("Unauthorized access.");
     }
   }, [searchParams]);
+
+  // Processes ID Token received from Google Auth
+  const processGoogleSignInToken = async (idToken) => {
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Google Sign-In successful!");
+        if (data.status === "registered_pending_approval") {
+          setStatusMessage({
+            type: "success",
+            title: "Registration Successful",
+            text: data.message,
+          });
+        } else {
+          router.push(data.redirect);
+          router.refresh();
+        }
+      } else {
+        toast.error(data.message);
+        if (data.status === "pending_approval") {
+          setStatusMessage({
+            type: "warning",
+            title: "Pending Approval",
+            text: data.message,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Token processing error:", error);
+      toast.error("Failed to establish session. Please try again.");
+    }
+  };
+
+  // Custom error display for Google Auth issues
+  const handleGoogleError = (error) => {
+    const isStorageError =
+      error.message?.includes("missing initial state") ||
+      error.code === "auth/web-context-cancelled" ||
+      error.code === "auth/network-request-failed";
+
+    if (isStorageError) {
+      setStatusMessage({
+        type: "warning",
+        title: "Mobile Storage / Security Block",
+        text: "Google Sign-In is blocked by your browser's third-party tracking/cookie protection or missing authorized domains in Firebase Console. Please add this domain to 'Authorized Domains' in your Firebase settings, disable 'Prevent Cross-Site Tracking' in Safari settings, or use standard credentials.",
+      });
+      toast.error("Storage partitioned or unauthorized domain.");
+    } else {
+      toast.error(error.message || "Google Authentication failed.");
+    }
+  };
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -86,45 +164,30 @@ function LoginForm() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     setStatusMessage(null);
+
+    // Detect mobile device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      typeof window !== "undefined" ? window.navigator.userAgent : ""
+    );
+
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const idToken = await result.user.getIdToken();
-
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        toast.success("Google Sign-In successful!");
-        if (data.status === "registered_pending_approval") {
-          setStatusMessage({
-            type: "success",
-            title: "Registration Successful",
-            text: data.message,
-          });
-        } else {
-          router.push(data.redirect);
-          router.refresh();
-        }
+      if (isMobileDevice) {
+        // Mobile uses Redirect to bypass popup blocks and localStorage iframe issues
+        await signInWithRedirect(auth, googleProvider);
       } else {
-        toast.error(data.message);
-        if (data.status === "pending_approval") {
-          setStatusMessage({
-            type: "warning",
-            title: "Pending Approval",
-            text: data.message,
-          });
-        }
+        // Desktop uses convenient Popup
+        const result = await signInWithPopup(auth, googleProvider);
+        const idToken = await result.user.getIdToken();
+        await processGoogleSignInToken(idToken);
       }
     } catch (error) {
-      console.error(error);
-      toast.error("Google Authentication failed.");
+      console.error("Google login initiation error:", error);
+      handleGoogleError(error);
     } finally {
-      setIsGoogleLoading(false);
+      // Note: Mobile redirect leaves the page, so loading state stays until page changes
+      if (!isMobileDevice) {
+        setIsGoogleLoading(false);
+      }
     }
   };
 
