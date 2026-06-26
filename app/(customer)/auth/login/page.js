@@ -93,7 +93,6 @@ function LoginForm() {
           });
           setIsGoogleLoading(false); // Stop loading since we stay here
         } else {
-          router.refresh();
           router.push(data.redirect);
           // Keep isGoogleLoading as true to show the loader until redirect finishes
         }
@@ -141,7 +140,6 @@ function LoginForm() {
       const res = await loginAction(data);
       if (res.success) {
         toast.success(res.message);
-        router.refresh();
         router.push(res.redirect);
         // Keep isLoading as true to show the loader until redirect finishes
       } else {
