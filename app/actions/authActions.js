@@ -8,7 +8,7 @@ import { signToken } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/mail";
 
 /**
- * Handles credentials registration.
+ * Handles credentials registration for Customers (Users).
  */
 export async function registerAction(formData) {
   try {
@@ -36,7 +36,7 @@ export async function registerAction(formData) {
       return { success: false, message: "Invalid email address" };
     }
 
-    // Check duplicate
+    // Check duplicate in Customer User table
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -52,14 +52,14 @@ export async function registerAction(formData) {
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Create user
+    // Create customer user
     await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         provider: "credentials",
-        roleId: 1, // Default to 1 as per instructions (everyone is Admin by default, or they can be Customer)
+        roleId: 2, // Customer role
         isEmailVerified: false,
         isApproved: false,
         verificationToken: token,
@@ -72,10 +72,9 @@ export async function registerAction(formData) {
       await sendVerificationEmail(email, token);
     } catch (mailError) {
       console.error("Failed to send verification email:", mailError);
-      // We still register the user but warn that email sending failed
       return {
         success: true,
-        message: "Registration successful! (Warning: Verification email could not be sent. Please contact Admin or check SMTP config).",
+        message: "Registration successful! (Warning: Verification email could not be sent. Please check SMTP config).",
       };
     }
 
@@ -90,7 +89,7 @@ export async function registerAction(formData) {
 }
 
 /**
- * Handles credentials login.
+ * Handles credentials login for Customers (Users).
  */
 export async function loginAction(formData) {
   try {
@@ -101,7 +100,7 @@ export async function loginAction(formData) {
       return { success: false, message: "Email and password are required" };
     }
 
-    // Find user
+    // Find in Customer User table
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -167,7 +166,7 @@ export async function loginAction(formData) {
       };
     }
 
-    // Establish session
+    // Establish Customer Session
     const cookieStore = await cookies();
     const headerStore = await headers();
     const ipAddress = headerStore.get("x-forwarded-for") || "127.0.0.1";
@@ -186,7 +185,7 @@ export async function loginAction(formData) {
       },
     });
 
-    // Set HTTP-only cookie
+    // Set Customer session_token cookie
     cookieStore.set("session_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -198,7 +197,7 @@ export async function loginAction(formData) {
     return {
       success: true,
       message: "Login successful!",
-      redirect: user.roleId === 1 ? "/admin/userApprove" : "/dashboard",
+      redirect: "/dashboard",
     };
   } catch (error) {
     console.error("Login action error:", error);
@@ -207,7 +206,7 @@ export async function loginAction(formData) {
 }
 
 /**
- * Handles admin specific login.
+ * Handles credentials login for Administrators.
  */
 export async function adminLoginAction(formData) {
   try {
@@ -218,47 +217,42 @@ export async function adminLoginAction(formData) {
       return { success: false, message: "Email and password are required" };
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find in Admin table
+    const admin = await prisma.admin.findUnique({
       where: { email },
     });
 
-    if (!user) {
+    if (!admin) {
       return { success: false, message: "Invalid email or password" };
     }
 
-    // Verify role is Admin (roleId = 1)
-    if (user.roleId !== 1) {
-      return { success: false, message: "Access denied. Only administrators can log in here." };
-    }
-
     // Verify password
-    const isPasswordMatch = await bcrypt.compare(password, user.password || "");
+    const isPasswordMatch = await bcrypt.compare(password, admin.password || "");
     if (!isPasswordMatch) {
       return { success: false, message: "Invalid email or password" };
     }
 
-    // Check approval/verification for Admin (Admin still needs verification/approval if self-registered, or we can auto-verify them)
-    if (!user.isEmailVerified) {
+    // Check approval/verification for Admin (Seeded admin is pre-approved)
+    if (!admin.isEmailVerified) {
       return { success: false, message: "Admin email must be verified first." };
     }
 
-    if (!user.isApproved) {
+    if (!admin.isApproved) {
       return { success: false, message: "Admin account is waiting for approval." };
     }
 
-    // Establish session
+    // Establish Admin Session
     const cookieStore = await cookies();
     const headerStore = await headers();
     const ipAddress = headerStore.get("x-forwarded-for") || "127.0.0.1";
     const userAgent = headerStore.get("user-agent") || "unknown";
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    const token = signToken({ id: user.id, email: user.email, roleId: user.roleId });
+    const token = signToken({ id: admin.id, email: admin.email, roleId: admin.roleId });
 
-    await prisma.userSession.create({
+    await prisma.adminSession.create({
       data: {
-        userId: user.id,
+        adminId: admin.id,
         token,
         expiresAt,
         ipAddress,
@@ -266,8 +260,8 @@ export async function adminLoginAction(formData) {
       },
     });
 
-    // Set cookie
-    cookieStore.set("session_token", token, {
+    // Set admin_session_token cookie
+    cookieStore.set("admin_session_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -278,7 +272,7 @@ export async function adminLoginAction(formData) {
     return {
       success: true,
       message: "Admin login successful!",
-      redirect: "/admin/userApprove",
+      redirect: "/admin/dashboard",
     };
   } catch (error) {
     console.error("Admin login error:", error);
@@ -287,22 +281,29 @@ export async function adminLoginAction(formData) {
 }
 
 /**
- * Handles logout.
+ * Handles logout for both User (Customer) and Admin.
  */
 export async function logoutAction() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("session_token")?.value;
-
-    if (token) {
-      // Remove from database
+    
+    // Clear user session if exists
+    const userToken = cookieStore.get("session_token")?.value;
+    if (userToken) {
       await prisma.userSession.delete({
-        where: { token },
+        where: { token: userToken },
       }).catch(() => {});
+      cookieStore.delete("session_token");
     }
 
-    // Clear cookie
-    cookieStore.delete("session_token");
+    // Clear admin session if exists
+    const adminToken = cookieStore.get("admin_session_token")?.value;
+    if (adminToken) {
+      await prisma.adminSession.delete({
+        where: { token: adminToken },
+      }).catch(() => {});
+      cookieStore.delete("admin_session_token");
+    }
 
     return { success: true, redirect: "/auth/login" };
   } catch (error) {

@@ -6,13 +6,8 @@
 }
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
-}
-
-.dark {
-  --background: #030712;
-  --foreground: #f9fafb;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 body {
@@ -21,25 +16,16 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Glassmorphism utility classes */
+/* Custom premium clean card background for standard light-mode design */
 .glass {
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
-.dark .glass {
-  background: rgba(17, 24, 39, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Custom background mesh */
+/* Light dot grid background for a clean premium B2B SaaS feel */
 .bg-mesh {
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.05) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
+  background-color: #f8fafc;
+  background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
 }

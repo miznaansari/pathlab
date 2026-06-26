@@ -49,31 +49,31 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6 bg-mesh bg-[#030712]">
+    <div className="flex-1 flex items-center justify-center p-6 bg-mesh">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-rose-600/10 border border-rose-500/20 mb-4">
-            <Shield className="h-6 w-6 text-rose-400" />
+          <div className="inline-flex items-center justify-center p-3 rounded-xl bg-red-50 border border-red-100 mb-4">
+            <Shield className="h-6 w-6 text-red-600" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
             Admin Console
           </h2>
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-slate-500">
             Sign in to access admin tools
           </p>
         </div>
 
-        <Card className="glass shadow-2xl border-rose-500/10">
+        <Card className="glass shadow-md">
           <CardHeader>
-            <CardTitle className="text-xl text-rose-400">Admin Sign In</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl text-red-700">Admin Sign In</CardTitle>
+            <CardDescription className="text-slate-500">
               Authorized personnel only
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-slate-700">Email Address</Label>
                 <Input
                   id="email"
                   type="email"
@@ -83,8 +83,8 @@ export default function AdminLoginPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-1">
+                <Label htmlFor="password" className="text-slate-700">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -98,7 +98,7 @@ export default function AdminLoginPage() {
             <CardFooter className="flex flex-col gap-4">
               <Button
                 type="submit"
-                className="w-full bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-600/10 focus:ring-rose-500"
+                className="w-full bg-red-600 hover:bg-red-700 focus:ring-red-500"
                 isLoading={isLoading}
               >
                 Access Admin Portal
@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-slate-500 hover:text-slate-900"
                 onClick={() => router.push("/auth/login")}
               >
                 Return to Customer Login

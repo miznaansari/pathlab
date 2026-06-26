@@ -2,8 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Search, Check, X, ShieldAlert, Clock, ShieldCheck, LogOut } from "lucide-react";
-import { approveUserAction, rejectUserAction } from "@/app/actions/adminActions";
+import { Search, Check, X, Clock, ShieldCheck, LogOut } from "lucide-react";
+import { approveUserAction, rejectUserAction, changeUserRoleAction } from "@/app/actions/adminActions";
 import { logoutAction } from "@/app/actions/authActions";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 
-export default function UserApproveTable({ initialUsers = [] }) {
+export default function UserApproveTable({ initialUsers = [], roles = [] }) {
   const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,6 +76,29 @@ export default function UserApproveTable({ initialUsers = [] }) {
     });
   };
 
+  const handleRoleChange = async (userId, roleId) => {
+    setPendingActionId({ id: userId, type: "role" });
+    startTransition(async () => {
+      try {
+        const res = await changeUserRoleAction(userId, roleId);
+        if (res.success) {
+          toast.success(res.message);
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === userId ? { ...u, roleId: res.user.roleId, role: res.user.role } : u
+            )
+          );
+        } else {
+          toast.error(res.message);
+        }
+      } catch (error) {
+        toast.error("Failed to change user role.");
+      } finally {
+        setPendingActionId(null);
+      }
+    });
+  };
+
   // Filtering logic
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -116,36 +139,41 @@ export default function UserApproveTable({ initialUsers = [] }) {
   return (
     <div className="space-y-6">
       {/* Header bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-gray-800">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-200">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <ShieldCheck className="h-8 w-8 text-rose-500" />
-            User Approvals
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <ShieldCheck className="h-7 w-7 text-blue-600" />
+            User Approvals & Roles
           </h1>
-          <p className="text-sm text-gray-400">
-            Manage incoming registration requests and permissions
+          <p className="text-sm text-slate-500">
+            Manage incoming registration requests and assign dynamic user roles
           </p>
         </div>
-        <Button variant="outline" className="border-gray-800 text-gray-300 hover:bg-gray-900" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout Admin
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50" onClick={() => router.push("/admin/dashboard")}>
+            Admin Dashboard
+          </Button>
+          <Button variant="outline" className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout Admin
+          </Button>
+        </div>
       </div>
 
       {/* Filters Card */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2 relative">
-          <Search className="absolute left-3 top-3.5 h-4 w-4 text-gray-500" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search by name or email..."
-            className="pl-9 bg-gray-900/50 border-gray-800"
+            className="pl-9 bg-white border-slate-300"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div>
           <select
-            className="w-full rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -158,12 +186,12 @@ export default function UserApproveTable({ initialUsers = [] }) {
       </div>
 
       {/* Table Container */}
-      <Card className="glass overflow-hidden shadow-2xl">
+      <Card className="glass overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>User Details</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Assigned Role</TableHead>
               <TableHead>Registration Date</TableHead>
               <TableHead>Email Verified</TableHead>
               <TableHead>Status</TableHead>
@@ -178,26 +206,35 @@ export default function UserApproveTable({ initialUsers = [] }) {
                     <div className="flex items-center gap-3">
                       <Avatar name={user.name} />
                       <div>
-                        <div className="font-semibold text-white">{user.name}</div>
-                        <div className="text-xs text-gray-400">{user.email}</div>
+                        <div className="font-semibold text-slate-800">{user.name}</div>
+                        <div className="text-xs text-slate-500">{user.email}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="font-mono text-xs">
-                      {user.role?.name || "Customer"}
-                    </Badge>
+                    <select
+                      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                      value={user.roleId}
+                      disabled={pendingActionId?.id === user.id && pendingActionId?.type === "role"}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                    >
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
                   </TableCell>
-                  <TableCell className="text-gray-400 text-xs">
+                  <TableCell className="text-slate-500 text-xs">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     {user.isEmailVerified ? (
-                      <Badge variant="default" className="bg-indigo-950/40 text-indigo-400 border border-indigo-900/50">
+                      <Badge variant="default" className="bg-blue-50 text-blue-700 border-blue-200">
                         Verified
                       </Badge>
                     ) : (
-                      <Badge variant="danger" className="bg-red-950/40 text-red-400 border border-red-900/50">
+                      <Badge variant="danger" className="bg-red-50 text-red-750 border-red-200">
                         Unverified
                       </Badge>
                     )}
@@ -209,7 +246,7 @@ export default function UserApproveTable({ initialUsers = [] }) {
                         <Button
                           size="sm"
                           variant="default"
-                          className="bg-emerald-600 hover:bg-emerald-500"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
                           onClick={() => handleApprove(user.id)}
                           isLoading={
                             pendingActionId?.id === user.id &&
@@ -238,7 +275,7 @@ export default function UserApproveTable({ initialUsers = [] }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                   No users found matching filters.
                 </TableCell>
               </TableRow>

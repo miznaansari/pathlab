@@ -1,16 +1,16 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { sendApprovalEmail, sendRejectionEmail } from "@/lib/mail";
 
 /**
- * Approves a registered user.
+ * Approves a registered customer user.
  */
 export async function approveUserAction(userId) {
   try {
     // Verify admin permission
-    await requireUser("admin:approve");
+    await requireAdmin("admin:approve");
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -44,12 +44,12 @@ export async function approveUserAction(userId) {
 }
 
 /**
- * Rejects a registered user.
+ * Rejects a registered customer user.
  */
 export async function rejectUserAction(userId) {
   try {
     // Verify admin permission
-    await requireUser("admin:reject");
+    await requireAdmin("admin:reject");
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -83,12 +83,12 @@ export async function rejectUserAction(userId) {
 }
 
 /**
- * Fetches all registered users for the admin dashboard.
+ * Fetches all registered customer users for the admin dashboard.
  */
 export async function getUsersAction() {
   try {
     // Verify admin view permission
-    await requireUser("admin:view");
+    await requireAdmin("admin:view");
 
     const users = await prisma.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -107,5 +107,58 @@ export async function getUsersAction() {
   } catch (error) {
     console.error("Get users action error:", error);
     return { success: false, message: "Failed to load users list." };
+  }
+}
+
+/**
+ * Changes a customer user's role.
+ */
+export async function changeUserRoleAction(userId, roleId) {
+  try {
+    // Verify admin permission
+    await requireAdmin("admin:approve");
+
+    const parsedRoleId = parseInt(roleId);
+
+    // Verify role exists in UserRole table
+    const roleExists = await prisma.userRole.findUnique({
+      where: { id: parsedRoleId },
+    });
+
+    if (!roleExists) {
+      return { success: false, message: "Invalid role selected" };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { success: false, message: "User not found" };
+    }
+
+    // Update role in DB
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        roleId: parsedRoleId,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Updated role of ${updatedUser.name} to ${updatedUser.role?.name || "Customer"}.`,
+      user: {
+        id: updatedUser.id,
+        roleId: updatedUser.roleId,
+        role: updatedUser.role,
+      },
+    };
+  } catch (error) {
+    console.error("Change user role error:", error);
+    return { success: false, message: "Failed to change user role." };
   }
 }

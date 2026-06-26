@@ -7,48 +7,59 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("session_token")?.value;
+  const userToken = request.cookies.get("session_token")?.value;
+  const adminToken = request.cookies.get("admin_session_token")?.value;
 
   // 1. Admin Pages protection
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/auth")) {
-    if (!token) {
+    if (!adminToken) {
       return NextResponse.redirect(new URL("/admin/auth/login", request.url));
     }
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.roleId !== 1) {
-        return NextResponse.redirect(new URL("/admin/auth/login?error=unauthorized", request.url));
-      }
+      await jwtVerify(adminToken, JWT_SECRET);
+      // Admin session is verified
     } catch (e) {
-      return NextResponse.redirect(new URL("/admin/auth/login", request.url));
+      const res = NextResponse.redirect(new URL("/admin/auth/login", request.url));
+      res.cookies.delete("admin_session_token");
+      return res;
     }
   }
 
   // 2. Customer Pages protection
   if (pathname.startsWith("/dashboard")) {
-    if (!token) {
+    if (!userToken) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
     try {
-      await jwtVerify(token, JWT_SECRET);
+      await jwtVerify(userToken, JWT_SECRET);
+      // Customer session is verified
     } catch (e) {
-      return NextResponse.redirect(new URL("/auth/login", request.url));
+      const res = NextResponse.redirect(new URL("/auth/login", request.url));
+      res.cookies.delete("session_token");
+      return res;
     }
   }
 
-  // 3. Prevent logged-in users from visiting auth pages
-  if (
-    (pathname === "/auth/login" || pathname === "/auth/register" || pathname === "/admin/auth/login") &&
-    token
-  ) {
+  // 3. Prevent logged-in admins from visiting admin auth page
+  if (pathname === "/admin/auth/login" && adminToken) {
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.roleId === 1) {
-        return NextResponse.redirect(new URL("/admin/userApprove", request.url));
-      } else {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-      }
+      await jwtVerify(adminToken, JWT_SECRET);
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     } catch (e) {
+      // Clean stale token
+      const res = NextResponse.next();
+      res.cookies.delete("admin_session_token");
+      return res;
+    }
+  }
+
+  // 4. Prevent logged-in users from visiting customer auth pages
+  if ((pathname === "/auth/login" || pathname === "/auth/register") && userToken) {
+    try {
+      await jwtVerify(userToken, JWT_SECRET);
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    } catch (e) {
+      // Clean stale token
       const res = NextResponse.next();
       res.cookies.delete("session_token");
       return res;

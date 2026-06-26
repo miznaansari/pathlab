@@ -2,7 +2,7 @@ import React from "react";
 
 export function Table({ className = "", children, ...props }) {
   return (
-    <div className="w-full overflow-auto rounded-xl border border-gray-200/60 dark:border-gray-800/60 bg-white/50 dark:bg-gray-950/50">
+    <div className="w-full overflow-auto rounded-lg border border-slate-200 bg-white">
       <table className={`w-full caption-bottom text-sm ${className}`} {...props}>
         {children}
       </table>
@@ -12,7 +12,7 @@ export function Table({ className = "", children, ...props }) {
 
 export function TableHeader({ className = "", children, ...props }) {
   return (
-    <thead className={`bg-gray-50/55 dark:bg-gray-900/50 border-b border-gray-200/60 dark:border-gray-800/60 ${className}`} {...props}>
+    <thead className={`bg-slate-50 border-b border-slate-200 ${className}`} {...props}>
       {children}
     </thead>
   );
@@ -20,7 +20,7 @@ export function TableHeader({ className = "", children, ...props }) {
 
 export function TableBody({ className = "", children, ...props }) {
   return (
-    <tbody className={`divide-y divide-gray-200/50 dark:divide-gray-800/50 ${className}`} {...props}>
+    <tbody className={`divide-y divide-slate-100 ${className}`} {...props}>
       {children}
     </tbody>
   );
@@ -29,7 +29,7 @@ export function TableBody({ className = "", children, ...props }) {
 export function TableHead({ className = "", children, ...props }) {
   return (
     <th
-      className={`h-12 px-4 text-left align-middle font-semibold text-gray-500 dark:text-gray-400 [&:has([role=checkbox])]:pr-0 ${className}`}
+      className={`h-12 px-4 text-left align-middle font-semibold text-slate-500 [&:has([role=checkbox])]:pr-0 ${className}`}
       {...props}
     >
       {children}
@@ -40,7 +40,7 @@ export function TableHead({ className = "", children, ...props }) {
 export function TableRow({ className = "", children, ...props }) {
   return (
     <tr
-      className={`transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-900/30 ${className}`}
+      className={`transition-colors hover:bg-slate-50 ${className}`}
       {...props}
     >
       {children}
@@ -51,7 +51,7 @@ export function TableRow({ className = "", children, ...props }) {
 export function TableCell({ className = "", children, ...props }) {
   return (
     <td
-      className={`p-4 align-middle [&:has([role=checkbox])]:pr-0 text-gray-700 dark:text-gray-300 ${className}`}
+      className={`p-4 align-middle [&:has([role=checkbox])]:pr-0 text-slate-700 ${className}`}
       {...props}
     >
       {children}

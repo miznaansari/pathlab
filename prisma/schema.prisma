@@ -12,9 +12,9 @@ model User {
   name                     String
   email                    String        @unique
   password                 String?
-  provider                 String        @default("credentials") // "credentials" or "google"
+  provider                 String        @default("credentials")
   googleId                 String?       @unique
-  roleId                   Int           @default(2) // Defaults to Customer (2)
+  roleId                   Int           @default(2) // Default customer role
   isEmailVerified          Boolean       @default(false)
   isApproved               Boolean       @default(false)
   rejected                 Boolean       @default(false)
@@ -22,7 +22,7 @@ model User {
   verificationTokenExpires DateTime?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
-  role                     Role          @relation(fields: [roleId], references: [id])
+  role                     UserRole      @relation(fields: [roleId], references: [id])
   sessions                 UserSession[]
 }
 
@@ -37,18 +37,60 @@ model UserSession {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Role {
-  id          Int              @id @default(autoincrement())
-  name        String           @unique
+model UserRole {
+  id          Int                  @id @default(autoincrement())
+  name        String               @unique
   users       User[]
-  permissions RolePermission[]
+  permissions UserRolePermission[]
 }
 
-model RolePermission {
-  id         Int    @id @default(autoincrement())
+model UserRolePermission {
+  id         Int      @id @default(autoincrement())
   roleId     Int
   permission String
-  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       UserRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+}
+
+model Admin {
+  id              Int            @id @default(autoincrement())
+  name            String
+  email           String         @unique
+  password        String
+  provider        String         @default("credentials")
+  roleId          Int            @default(1) // Default admin role
+  isEmailVerified Boolean        @default(true)
+  isApproved      Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  role            AdminRole      @relation(fields: [roleId], references: [id])
+  sessions        AdminSession[]
+}
+
+model AdminSession {
+  id        Int      @id @default(autoincrement())
+  adminId   Int
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model AdminRole {
+  id          Int                    @id @default(autoincrement())
+  name        String                 @unique
+  admins      Admin[]
+  permissions AdminRolePermission[]
+}
+
+model AdminRolePermission {
+  id         Int       @id @default(autoincrement())
+  roleId     Int
+  permission String
+  role       AdminRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permission])
 }

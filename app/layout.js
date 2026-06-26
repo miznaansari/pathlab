@@ -15,8 +15,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${outfit.variable} h-full antialiased dark`}>
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900 dark:bg-[#030712] dark:text-gray-100 font-sans selection:bg-indigo-500 selection:text-white">
+    <html lang="en" className={`${outfit.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
         <ToastProvider />
         <div className="flex-1 flex flex-col">{children}</div>
       </body>

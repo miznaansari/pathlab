@@ -72,16 +72,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6 bg-mesh bg-[#030712]">
+    <div className="flex-1 flex items-center justify-center p-6 bg-mesh">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 mb-4">
-            <UserPlus className="h-6 w-6 text-indigo-400" />
+          <div className="inline-flex items-center justify-center p-3 rounded-xl bg-blue-50 border border-blue-100 mb-4">
+            <UserPlus className="h-6 w-6 text-blue-600" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
             Create an Account
           </h2>
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-slate-500">
             Sign up to get started with Pathlab
           </p>
         </div>
@@ -96,17 +96,17 @@ export default function RegisterPage() {
           </Alert>
         )}
 
-        <Card className="glass shadow-2xl">
+        <Card className="glass shadow-md">
           <CardHeader>
-            <CardTitle className="text-xl">Register</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl text-slate-800">Register</CardTitle>
+            <CardDescription className="text-slate-500">
               Provide your details below to sign up
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+              <div className="space-y-1">
+                <Label htmlFor="name" className="text-slate-700">Full Name</Label>
                 <Input
                   id="name"
                   type="text"
@@ -116,8 +116,8 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-slate-700">Email Address</Label>
                 <Input
                   id="email"
                   type="email"
@@ -127,8 +127,8 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-1">
+                <Label htmlFor="password" className="text-slate-700">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -138,8 +138,8 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="space-y-1">
+                <Label htmlFor="confirmPassword" className="text-slate-700">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
@@ -156,7 +156,7 @@ export default function RegisterPage() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
 
-              <p className="text-sm text-center text-gray-400 mt-2">
+              <p className="text-sm text-center text-slate-500 mt-2">
                 Already have an account?{" "}
                 <Button
                   type="button"

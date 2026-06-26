@@ -13,20 +13,34 @@ export async function POST(request) {
       );
     }
 
-    // Verify token using Google OAuth API
-    const googleRes = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+    // Verify token using Firebase Identity Toolkit API
+    const firebaseRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      }
     );
 
-    if (!googleRes.ok) {
+    if (!firebaseRes.ok) {
       return NextResponse.json(
         { success: false, message: "Invalid Google ID token" },
         { status: 400 }
       );
     }
 
-    const payload = await googleRes.json();
-    const { email, sub: googleId, name } = payload;
+    const firebaseData = await firebaseRes.json();
+    const googleUser = firebaseData.users?.[0];
+
+    if (!googleUser) {
+      return NextResponse.json(
+        { success: false, message: "Invalid Google user account data" },
+        { status: 400 }
+      );
+    }
+
+    const { email, localId: googleId, displayName: name } = googleUser;
 
     if (!email) {
       return NextResponse.json(
@@ -35,20 +49,20 @@ export async function POST(request) {
       );
     }
 
-    // Check if user exists
+    // Check if user exists in standard Customer User table
     let user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      // Register user
+      // Register user as Customer (roleId: 2)
       user = await prisma.user.create({
         data: {
           name: name || email.split("@")[0],
           email,
           provider: "google",
           googleId,
-          roleId: 1, // Default roleId = 1 as per registration instructions
+          roleId: 2, // Customer role
           isEmailVerified: true,
           isApproved: false,
         },
@@ -89,7 +103,7 @@ export async function POST(request) {
       });
     }
 
-    // Create session
+    // Create session in UserSession
     const ipAddress = request.headers.get("x-forwarded-for") || "127.0.0.1";
     const userAgent = request.headers.get("user-agent") || "unknown";
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -106,10 +120,10 @@ export async function POST(request) {
       },
     });
 
-    // Set cookie
+    // Set Customer session_token cookie
     const response = NextResponse.json({
       success: true,
-      redirect: user.roleId === 1 ? "/admin/userApprove" : "/dashboard",
+      redirect: "/dashboard",
     });
 
     response.cookies.set("session_token", token, {

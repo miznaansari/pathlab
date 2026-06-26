@@ -7,19 +7,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { LogOut, Shield, ShieldCheck, MailCheck, Calendar, Globe, User, Fingerprint } from "lucide-react";
+import { LogOut, Calendar, ClipboardList, UserCheck, ShieldCheck, Download, Plus, FileText, FlaskConical, Activity } from "lucide-react";
 
 export default async function DashboardPage() {
-  // Protect page and load user details
   const user = await requireUser();
 
-  // Load user sessions
-  const sessions = await prisma.userSession.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
-
+  // Handle Logout server action
   const handleLogout = async () => {
     "use server";
     const res = await logoutAction();
@@ -28,160 +21,137 @@ export default async function DashboardPage() {
     }
   };
 
+  // Mock pathlab dashboard reports data
+  const dummyLabReports = [
+    { id: "REP-9081", testName: "Complete Blood Count (CBC)", date: "2026-06-25", status: "Ready", doctor: "Dr. Rachel Green" },
+    { id: "REP-4310", testName: "Lipid Profile (Cholesterol)", date: "2026-06-24", status: "Ready", doctor: "Dr. Rachel Green" },
+    { id: "REP-7721", testName: "HbA1c & Blood Glucose", date: "2026-06-26", status: "Processing", doctor: "Dr. Monica Geller" },
+    { id: "REP-1025", testName: "Thyroid Profile (T3, T4, TSH)", date: "2026-06-27", status: "Pending Sample", doctor: "Dr. Joey Tribbiani" },
+  ];
+
   return (
-    <div className="flex-1 bg-mesh bg-[#030712] py-12 px-6">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-800 pb-6">
+    <div className="flex-1 bg-slate-50 py-12 px-6">
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header bar */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-6">
           <div className="flex items-center gap-4">
             <Avatar name={user.name} className="h-16 w-16 text-lg" />
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">{user.name}</h1>
-              <p className="text-sm text-gray-400">{user.email}</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-950 tracking-tight">{user.name}</h1>
+                <Badge variant="default" className="text-[10px] py-0.5 bg-blue-50 text-blue-700 border-blue-200">Patient Account</Badge>
+              </div>
+              <p className="text-sm text-slate-500">{user.email}</p>
             </div>
           </div>
-          <form action={handleLogout}>
-            <Button type="submit" variant="destructive" className="w-full md:w-auto">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+          <div className="flex gap-3 w-full md:w-auto">
+            <Button className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              Book New Test
             </Button>
-          </form>
+            <form action={handleLogout} className="flex-1 md:flex-none">
+              <Button type="submit" variant="destructive" className="w-full">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </form>
+          </div>
         </div>
 
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Profile Overview Card */}
-          <Card className="glass md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="h-5 w-5 text-indigo-400" />
-                Profile Details
-              </CardTitle>
-              <CardDescription>Verify your user credentials and states</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-800/40 space-y-1">
-                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Account Status</span>
-                <div className="flex items-center gap-2 mt-1">
-                  {user.isApproved ? (
-                    <>
-                      <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                      <span className="text-sm font-semibold text-emerald-400">Approved by Admin</span>
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="h-4 w-4 text-amber-400" />
-                      <span className="text-sm font-semibold text-amber-400">Pending Approval</span>
-                    </>
-                  )}
-                </div>
+        {/* Pathlab Stats Overview */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <Card className="glass shadow-sm">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                <ClipboardList className="h-6 w-6" />
               </div>
-
-              <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-800/40 space-y-1">
-                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Email Verification</span>
-                <div className="flex items-center gap-2 mt-1">
-                  {user.isEmailVerified ? (
-                    <>
-                      <MailCheck className="h-4 w-4 text-indigo-400" />
-                      <span className="text-sm font-semibold text-indigo-400">Verified</span>
-                    </>
-                  ) : (
-                    <span className="text-sm font-semibold text-red-400">Not Verified</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-800/40 space-y-1">
-                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Authentication Provider</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={user.provider === "google" ? "default" : "secondary"}>
-                    {user.provider}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-gray-900/40 border border-gray-800/40 space-y-1">
-                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">User ID</span>
-                <div className="flex items-center gap-2 mt-1 text-sm font-mono text-gray-300">
-                  <Fingerprint className="h-4 w-4 text-gray-400" />
-                  {user.id}
-                </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Booked Tests</p>
+                <p className="text-2xl font-extrabold text-slate-950 mt-1">4</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Role Card */}
-          <Card className="glass flex flex-col justify-between">
-            <div>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-indigo-400" />
-                  Role Profile
-                </CardTitle>
-                <CardDescription>Your privileges on this platform</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block mb-1">
-                    Assigned Role
-                  </span>
-                  <Badge variant="default" className="text-sm py-1 px-3">
-                    {user.role?.name || "Customer"}
-                  </Badge>
-                </div>
+          <Card className="glass shadow-sm">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Reports Published</p>
+                <p className="text-2xl font-extrabold text-slate-950 mt-1">2</p>
+              </div>
+            </CardContent>
+          </Card>
 
-                <div>
-                  <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block mb-1">
-                    Permissions
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {user.role?.permissions?.map((p) => (
-                      <span
-                        key={p.id}
-                        className="text-xs font-mono bg-gray-900 border border-gray-800 text-gray-300 rounded px-2 py-0.5"
-                      >
-                        {p.permission}
-                      </span>
-                    )) || <span className="text-xs text-gray-500">No permissions</span>}
-                  </div>
-                </div>
-              </CardContent>
-            </div>
+          <Card className="glass shadow-sm">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-amber-50 rounded-lg text-amber-600">
+                <FlaskConical className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Pending Samples</p>
+                <p className="text-2xl font-extrabold text-slate-950 mt-1">1</p>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
-        {/* Sessions Card */}
-        <Card className="glass">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-5 w-5 text-indigo-400" />
-              Active Sessions
-            </CardTitle>
-            <CardDescription>Monitor your active login sessions and devices</CardDescription>
+        {/* Lab Reports Table */}
+        <Card className="glass shadow-sm">
+          <CardHeader className="flex flex-row justify-between items-center">
+            <div>
+              <CardTitle className="text-lg text-slate-800 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                Pathological Reports & Test Orders
+              </CardTitle>
+              <CardDescription className="text-slate-500">Track sample processing and download clinical lab reports</CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
               <thead>
-                <tr className="border-b border-gray-800 text-gray-400 font-medium">
-                  <th className="py-3 px-4">Browser / OS</th>
-                  <th className="py-3 px-4">IP Address</th>
-                  <th className="py-3 px-4">Logged In</th>
-                  <th className="py-3 px-4">Expires</th>
+                <tr className="border-b border-slate-200 text-slate-500 font-semibold">
+                  <th className="py-3 px-4">Report ID</th>
+                  <th className="py-3 px-4">Test Profile Name</th>
+                  <th className="py-3 px-4">Prescribing Doctor</th>
+                  <th className="py-3 px-4">Order Date</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800/40">
-                {sessions.map((s) => (
-                  <tr key={s.id} className="text-gray-300 hover:bg-gray-900/10">
-                    <td className="py-3.5 px-4 font-medium max-w-xs truncate" title={s.userAgent}>
-                      {s.userAgent?.split(" ")[0] || "Unknown Browser"}
+              <tbody className="divide-y divide-slate-100">
+                {dummyLabReports.map((report) => (
+                  <tr key={report.id} className="text-slate-700 hover:bg-slate-50/50">
+                    <td className="py-3.5 px-4 font-mono text-xs font-semibold text-slate-900">{report.id}</td>
+                    <td className="py-3.5 px-4 font-medium">{report.testName}</td>
+                    <td className="py-3.5 px-4 text-slate-600">{report.doctor}</td>
+                    <td className="py-3.5 px-4 text-slate-500">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {report.date}
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-xs">{s.ipAddress || "127.0.0.1"}</td>
-                    <td className="py-3.5 px-4 flex items-center gap-1.5 text-xs text-gray-400">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {new Date(s.createdAt).toLocaleDateString()}
+                    <td className="py-3.5 px-4">
+                      {report.status === "Ready" && (
+                        <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">Ready</Badge>
+                      )}
+                      {report.status === "Processing" && (
+                        <Badge variant="warning" className="bg-amber-50 text-amber-700 border-amber-200">Processing</Badge>
+                      )}
+                      {report.status === "Pending Sample" && (
+                        <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">Pending Sample</Badge>
+                      )}
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-gray-400">
-                      {new Date(s.expiresAt).toLocaleDateString()}
+                    <td className="py-3.5 px-4 text-right">
+                      {report.status === "Ready" ? (
+                        <Button size="sm" variant="outline" className="h-8 border-slate-300 hover:bg-slate-50 text-slate-700">
+                          <Download className="h-3 w-3 mr-1" />
+                          PDF
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic">Unavailable</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -189,6 +159,31 @@ export default async function DashboardPage() {
             </table>
           </CardContent>
         </Card>
+
+        {/* Support Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <Card className="glass shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-md text-slate-800">Support & Inquiries</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-slate-600 space-y-2">
+              <p>For urgent report collections or sample collection rescheduling, please dial the helpline:</p>
+              <p className="font-semibold text-blue-600 text-base">+1 (800) 555-PATH</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-md text-slate-800">Safety & Verification</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-slate-600 flex items-center gap-3">
+              <ShieldCheck className="h-10 w-10 text-emerald-600 shrink-0" />
+              <div>
+                <p>All lab processes are NABL certified. Your health data is protected under JWT and verified session policies.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

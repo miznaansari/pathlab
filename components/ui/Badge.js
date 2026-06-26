@@ -2,14 +2,14 @@ import React from "react";
 
 export function Badge({ className = "", variant = "default", children, ...props }) {
   const baseStyles =
-    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wider transition-colors uppercase";
+    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wider transition-colors uppercase border";
 
   const variants = {
-    default: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
-    secondary: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-    success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-    warning: "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
-    danger: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
+    default: "bg-blue-50 border-blue-200 text-blue-700",
+    secondary: "bg-slate-100 border-slate-200 text-slate-800",
+    success: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    warning: "bg-amber-50 border-amber-200 text-amber-700",
+    danger: "bg-red-50 border-red-200 text-red-700",
   };
 
   return (
