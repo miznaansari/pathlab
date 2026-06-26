@@ -46,11 +46,12 @@ function LoginForm() {
         if (result) {
           const idToken = await result.user.getIdToken();
           await processGoogleSignInToken(idToken);
+        } else {
+          setIsGoogleLoading(false);
         }
       } catch (error) {
         console.error("Redirect Sign-In error:", error);
         handleGoogleError(error);
-      } finally {
         setIsGoogleLoading(false);
       }
     };
@@ -90,9 +91,11 @@ function LoginForm() {
             title: "Registration Successful",
             text: data.message,
           });
+          setIsGoogleLoading(false); // Stop loading since we stay here
         } else {
           router.refresh();
           router.push(data.redirect);
+          // Keep isGoogleLoading as true to show the loader until redirect finishes
         }
       } else {
         toast.error(data.message);
@@ -103,10 +106,12 @@ function LoginForm() {
             text: data.message,
           });
         }
+        setIsGoogleLoading(false);
       }
     } catch (error) {
       console.error("Token processing error:", error);
       toast.error("Failed to establish session. Please try again.");
+      setIsGoogleLoading(false);
     }
   };
 
@@ -138,6 +143,7 @@ function LoginForm() {
         toast.success(res.message);
         router.refresh();
         router.push(res.redirect);
+        // Keep isLoading as true to show the loader until redirect finishes
       } else {
         toast.error(res.message);
         if (res.status === "unverified") {
@@ -153,10 +159,10 @@ function LoginForm() {
             text: res.message,
           });
         }
+        setIsLoading(false);
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -183,11 +189,7 @@ function LoginForm() {
     } catch (error) {
       console.error("Google login initiation error:", error);
       handleGoogleError(error);
-    } finally {
-      // Note: Mobile redirect leaves the page, so loading state stays until page changes
-      if (!isMobileDevice) {
-        setIsGoogleLoading(false);
-      }
+      setIsGoogleLoading(false);
     }
   };
 

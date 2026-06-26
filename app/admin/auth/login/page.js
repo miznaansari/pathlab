@@ -40,10 +40,10 @@ export default function AdminLoginPage() {
         router.push(res.redirect);
       } else {
         toast.error(res.message);
+        setIsLoading(false);
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
