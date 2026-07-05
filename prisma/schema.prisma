@@ -94,3 +94,129 @@ model AdminRolePermission {
 
   @@unique([roleId, permission])
 }
+
+model Doctor {
+  id                  Int            @id @default(autoincrement())
+  name                String
+  code                String?        @unique
+  lastPaid            DateTime?
+  registrations       Registration[] @relation("RefBy")
+  secondRegistrations Registration[] @relation("SecondRef")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model Test {
+  id            Int                @id @default(autoincrement())
+  name          String
+  code          String?            @unique
+  price         Decimal            @db.Decimal(10, 2)
+  isProcessed   Boolean            @default(false)
+  registrations RegistrationTest[]
+  parameters    TestParameter[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model Registration {
+  id               Int                @id @default(autoincrement())
+  billOn           String             @default("Patient Rate")
+  mobileNo         String
+  labId            String             @unique
+  regNo            String             @unique
+  date             DateTime           @default(now())
+  title            String             // Mr., Mrs., Dr.
+  name             String
+  city             String             @default("-NA-")
+  age              Float
+  ageUnit          String             @default("Year") // Year, Month, Day
+  gender           String             // Male, Female, Other
+  refById          Int?
+  refBy            Doctor?            @relation("RefBy", fields: [refById], references: [id])
+  secondRefId      Int?
+  secondRef        Doctor?            @relation("SecondRef", fields: [secondRefId], references: [id])
+  remark           String?
+  colType          String             @default("Camp")
+  expRptDate       DateTime?
+  sampleDate       DateTime?
+  sampleNo         String?
+  sampleBy         String             @default("-NA-")
+  paymentMode      String             @default("Cash")
+  paymentRefNo     String?
+  totalAmount      Decimal            @db.Decimal(10, 2) @default(0.00)
+  collectionCharge Decimal            @db.Decimal(10, 2) @default(0.00)
+  discountPercent  Decimal            @db.Decimal(10, 2) @default(0.00)
+  discountAmount   Decimal            @db.Decimal(10, 2) @default(0.00)
+  receivedAmount   Decimal            @db.Decimal(10, 2) @default(0.00)
+  dueAmount        Decimal            @db.Decimal(10, 2) @default(0.00)
+  stickerCount     Int                @default(1)
+  barcode          String?
+  status           String             @default("Pending") // Pending, Completed
+  tests            RegistrationTest[]
+  results          PatientResult[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model RegistrationTest {
+  registrationId Int
+  testId         Int
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  test           Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  // Sample Management fields
+  sampleStatus   String       @default("Pending") // Pending, Accepted, Rejected
+  sampleBarcode  String?
+  sampleRemark   String?
+  sendTo         String       @default("-NA-")
+  expense        Decimal      @db.Decimal(10, 2) @default(0.00)
+  assessNo       String?
+  pathologist    String       @default("-NA-")
+  collectedBy    String       @default("-NA-")
+  product        String       @default("-NA-")
+
+  @@id([registrationId, testId])
+}
+
+model TestParameter {
+  id                  Int             @id @default(autoincrement())
+  testId              Int
+  test                Test            @relation(fields: [testId], references: [id], onDelete: Cascade)
+  name                String
+  
+  // Male reference values
+  minValMale          Float?
+  maxValMale          Float?
+  normalRangeMale     String?
+  
+  // Female reference values
+  minValFemale        Float?
+  maxValFemale        Float?
+  normalRangeFemale   String?
+  
+  // Baby/Child reference values
+  minValBaby          Float?
+  maxValBaby          Float?
+  normalRangeBaby     String?
+
+  // Fallback default range
+  normalRangeDefault  String?
+  unit                String?
+  order               Int             @default(1)
+  results             PatientResult[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model PatientResult {
+  id              Int           @id @default(autoincrement())
+  registrationId  Int
+  registration    Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  testParameterId Int
+  testParameter   TestParameter @relation(fields: [testParameterId], references: [id], onDelete: Cascade)
+  value           String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([registrationId, testParameterId])
+}
