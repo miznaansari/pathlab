@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
     }
 
     const registration = await prisma.registration.findFirst({
-      where: { id: regId, workspaceId: admin.workspaceId },
+      where: { id: regId, workspaceId: admin.workspaceId, isDeleted: false },
       include: { tests: true },
     });
 
@@ -76,7 +76,7 @@ export async function PUT(req, { params }) {
     }
 
     const existing = await prisma.registration.findFirst({
-      where: { id: regId, workspaceId: admin.workspaceId },
+      where: { id: regId, workspaceId: admin.workspaceId, isDeleted: false },
     });
 
     if (!existing) {
@@ -150,14 +150,17 @@ export async function DELETE(req, { params }) {
     }
 
     const existing = await prisma.registration.findFirst({
-      where: { id: regId, workspaceId: admin.workspaceId },
+      where: { id: regId, workspaceId: admin.workspaceId, isDeleted: false },
     });
 
     if (!existing) {
       return NextResponse.json({ success: false, message: "Registration not found or unauthorized." }, { status: 404 });
     }
 
-    await prisma.registration.delete({ where: { id: regId } });
+    await prisma.registration.update({
+      where: { id: regId },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
     return NextResponse.json({ success: true, message: "Registration deleted successfully." });
   } catch (error) {
     console.error("Workspace Registration DELETE ID Error:", error);

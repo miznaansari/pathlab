@@ -14,6 +14,8 @@ model Workspace {
   isActive      Boolean        @default(true)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  isDeleted     Boolean        @default(false)
+  deletedAt     DateTime?
   admins        Admin[]
   doctors       Doctor[]
   registrations Registration[]
@@ -129,6 +131,8 @@ model AdminSession {
 model AdminRole {
   id          Int                    @id @default(autoincrement())
   name        String                 @unique
+  isDeleted   Boolean                @default(false)
+  deletedAt   DateTime?
   admins      Admin[]
   permissions AdminRolePermission[]
 }
@@ -206,6 +210,8 @@ model Registration {
   status           String             @default("Pending") // Pending, Completed
   tests            RegistrationTest[]
   results          PatientResult[]
+  isDeleted        Boolean            @default(false)
+  deletedAt        DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

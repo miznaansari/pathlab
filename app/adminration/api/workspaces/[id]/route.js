@@ -12,7 +12,10 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ success: false, error: "Invalid workspace ID" }, { status: 400 });
     }
 
-    await prisma.workspace.delete({ where: { id: workspaceId } });
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
     return NextResponse.json({ success: true, message: "Workspace deleted successfully." });
   } catch (error) {
     console.error("SuperAdmin Workspace DELETE Error:", error);

@@ -53,8 +53,8 @@ export async function GET(req, { params }) {
 
     if (!isNaN(regId)) {
       // First try to find by integer ID
-      reg = await prisma.registration.findUnique({
-        where: { id: regId },
+      reg = await prisma.registration.findFirst({
+        where: { id: regId, isDeleted: false },
         include: {
           refBy: true,
           tests: {
@@ -77,6 +77,7 @@ export async function GET(req, { params }) {
       // Find by barcode, regNo, or labId
       reg = await prisma.registration.findFirst({
         where: {
+          isDeleted: false,
           OR: [
             { barcode: { contains: registrationId } },
             { regNo: registrationId },

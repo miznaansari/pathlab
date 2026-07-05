@@ -7,6 +7,7 @@ export async function GET() {
     await requireSuperAdmin();
 
     const workspaces = await prisma.workspace.findMany({
+      where: { isDeleted: false },
       include: {
         admins: {
           select: { id: true, name: true, email: true, isActive: true },
@@ -25,6 +26,7 @@ export async function GET() {
           where: {
             workspaceId: ws.id,
             date: { gte: startOfToday },
+            isDeleted: false,
           },
         });
 
@@ -32,6 +34,7 @@ export async function GET() {
           where: {
             workspaceId: ws.id,
             date: { gte: startOf7DaysAgo },
+            isDeleted: false,
           },
         });
 
@@ -69,7 +72,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Name and slug are required." });
     }
 
-    const existing = await prisma.workspace.findUnique({ where: { slug } });
+    const existing = await prisma.workspace.findFirst({ where: { slug, isDeleted: false } });
     if (existing) {
       return NextResponse.json({ success: false, error: "A workspace with this slug already exists." });
     }

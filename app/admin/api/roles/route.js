@@ -6,6 +6,7 @@ export async function GET() {
   try {
     await requireAdmin();
     const roles = await prisma.adminRole.findMany({
+      where: { isDeleted: false },
       select: { id: true, name: true },
       orderBy: { id: "asc" },
     });

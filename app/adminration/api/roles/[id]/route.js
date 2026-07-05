@@ -16,7 +16,10 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ success: false, error: "Cannot delete the default Admin role." }, { status: 400 });
     }
 
-    await prisma.adminRole.delete({ where: { id: roleId } });
+    await prisma.adminRole.update({
+      where: { id: roleId },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
     return NextResponse.json({ success: true, message: "Role deleted successfully." });
   } catch (error) {
     console.error("SuperAdmin Role DELETE Error:", error);

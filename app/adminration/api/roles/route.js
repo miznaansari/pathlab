@@ -7,6 +7,7 @@ export async function GET() {
     await requireSuperAdmin();
 
     const roles = await prisma.adminRole.findMany({
+      where: { isDeleted: false },
       include: {
         permissions: true,
       },
@@ -38,7 +39,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Role name is required." });
     }
 
-    const existing = await prisma.adminRole.findUnique({ where: { name } });
+    const existing = await prisma.adminRole.findFirst({ where: { name, isDeleted: false } });
     if (existing) {
       return NextResponse.json({ success: false, error: "A role with this name already exists." });
     }

@@ -46,7 +46,7 @@ export async function GET(req) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const where = { workspaceId: admin.workspaceId };
+    const where = { workspaceId: admin.workspaceId, isDeleted: false };
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = new Date(startDate);
