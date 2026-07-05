@@ -47,7 +47,30 @@ import {
   Settings as SettingsIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Assignment as AssignmentIcon,
+  AssignmentTurnedIn as SampleIcon,
+  AddBox as AddBoxIcon,
+  Science as ResultEntryIcon,
+  Visibility as VisibilityIcon,
+  QrCode as BarcodeIcon,
+  ReceiptLong as ReceiptIcon,
+  Payment as PaymentIcon,
+  Block as CancelIcon,
+  BorderColor as EditInplaceIcon,
+  Notifications as ReminderIcon,
+  CloudUpload as UploadIcon,
+  PersonAdd as PersonAddIcon,
+  AccountTree as BranchIcon,
+  SwapHoriz as TransferIcon,
+  CompareArrows as CompareIcon,
+  NotificationImportant as UrgentIcon,
+  Info as InfoIcon,
+  LocalShipping as DeliveryIcon,
+  UploadFile as UploadFileIcon,
+  Description as FormFIcon,
+  Article as WorksheetIcon,
+  Paid as PaidIcon
 } from "@mui/icons-material";
 import {
   getRegistrations,
@@ -58,6 +81,291 @@ import {
   savePatientResults,
   saveTestParameters
 } from "@/app/actions/registrationActions";
+
+const menuButtonStyle = {
+  justifyContent: "flex-start",
+  textAlign: "left",
+  textTransform: "none",
+  py: 0.6,
+  px: 1.2,
+  borderRadius: 1.5,
+  fontSize: "0.82rem",
+  fontWeight: 600,
+  color: "text.secondary",
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  gap: 1.2,
+  transition: "all 0.15s ease-in-out",
+  "& .MuiButton-startIcon": {
+    marginRight: 0.8,
+    "& .MuiSvgIcon-root": {
+      fontSize: "1.1rem",
+      transition: "all 0.15s ease-in-out"
+    }
+  },
+  "&:hover": {
+    bgcolor: "rgba(15, 118, 110, 0.08)",
+    color: "primary.main",
+    "& .MuiButton-startIcon .MuiSvgIcon-root": {
+      color: "primary.main",
+      transform: "scale(1.15)"
+    }
+  }
+};
+
+const activeMenuButtonStyle = {
+  ...menuButtonStyle,
+  color: "primary.main",
+  bgcolor: "rgba(15, 118, 110, 0.04)",
+  "& .MuiButton-startIcon .MuiSvgIcon-root": {
+    color: "primary.main"
+  },
+  "&:hover": {
+    bgcolor: "rgba(15, 118, 110, 0.12)",
+    color: "primary.dark",
+    "& .MuiButton-startIcon .MuiSvgIcon-root": {
+      color: "primary.dark",
+      transform: "scale(1.15)"
+    }
+  }
+};
+
+const dangerMenuButtonStyle = {
+  ...menuButtonStyle,
+  color: "error.main",
+  "& .MuiButton-startIcon .MuiSvgIcon-root": {
+    color: "error.main"
+  },
+  "&:hover": {
+    bgcolor: "rgba(239, 68, 68, 0.08)",
+    color: "error.dark",
+    "& .MuiButton-startIcon .MuiSvgIcon-root": {
+      color: "error.dark",
+      transform: "scale(1.15)"
+    }
+  }
+};
+
+const getParamKey = (name) => {
+  if (!name) return "";
+  const normalized = name
+    .replace(/^[\s\d.\-*()#+:/]*/, "") // Strip numbers, dots, spaces, special chars at start
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  // Bilirubin
+  if (normalized === "total bilirubin" || normalized === "bilirubin total" || normalized.includes("serum bilirubin (total)") || normalized === "serum bilirubin total") return "tb";
+  if (normalized === "direct bilirubin" || normalized === "bilirubin direct" || normalized.includes("serum bilirubin (direct)") || normalized === "serum bilirubin direct") return "db";
+  if (normalized === "indirect bilirubin" || normalized === "bilirubin indirect" || normalized.includes("serum bilirubin (indirect)") || normalized === "serum bilirubin indirect") return "ib";
+
+  // Proteins
+  if (normalized === "total protein" || normalized === "protein total" || normalized === "serum total protein") return "tp";
+  if (normalized === "albumin" || normalized === "serum albumin") return "alb";
+  if (normalized === "globulin" || normalized === "serum globulin") return "glob";
+  if (normalized === "albumin/globulin ratio" || normalized === "a/g ratio" || normalized === "a : g ratio" || normalized.includes("albumin globulin ratio") || normalized.includes("albumin/globulin")) return "agr";
+
+  // Renal
+  if (normalized === "blood urea" || normalized === "serum urea" || normalized === "urea") return "urea";
+  if (normalized === "blood urea nitrogen" || normalized === "bun" || normalized === "blood urea nitrogen(bun)" || normalized === "blood urea nitrogen (bun)") return "bun";
+  if (normalized === "serum creatinine" || normalized === "creatinine") return "cr";
+  if (normalized === "bun/creatinine ratio" || normalized === "bun:creatinine ratio" || normalized.includes("bun/creatinine")) return "bcr";
+  if (normalized === "urea/creatinine ratio" || normalized === "urea:creatinine ratio" || normalized.includes("urea/creatinine")) return "ucr";
+
+  // Lipids
+  if (normalized === "total cholesterol" || normalized === "cholesterol" || normalized === "serum cholesterol") return "tc";
+  if (normalized === "hdl cholesterol" || normalized === "hdl" || normalized === "hdl-cholesterol" || normalized === "serum hdl") return "hdl";
+  if (normalized === "ldl cholesterol" || normalized === "ldl" || normalized === "ldl-cholesterol" || normalized === "serum ldl") return "ldl";
+  if (normalized === "vldl cholesterol" || normalized === "vldl" || normalized === "vldl-cholesterol" || normalized === "serum vldl") return "vldl";
+  if (normalized === "triglycerides" || normalized === "triglyceride" || normalized === "serum triglycerides") return "tg";
+  if (normalized === "cholesterol/hdl ratio" || normalized === "chol/hdl ratio" || normalized.includes("cholesterol/hdl")) return "chr";
+  if (normalized === "ldl/hdl ratio" || normalized.includes("ldl/hdl")) return "lhr";
+
+  // CBC
+  if (normalized === "haemoglobin" || normalized === "hemoglobin" || normalized === "hb") return "hb";
+  if (normalized === "pcv (haematocrit)" || normalized === "pcv" || normalized === "haematocrit" || normalized === "hematocrit") return "pcv";
+  if (normalized === "rbc count (red blood cells)" || normalized === "rbc count" || normalized === "rbc" || normalized === "red blood cells") return "rbc";
+  if (normalized === "mcv") return "mcv";
+  if (normalized === "mch") return "mch";
+  if (normalized === "mchc") return "mchc";
+
+  return null;
+};
+
+const calculateAllDependents = (values, tests, changedId) => {
+  const res = { ...values };
+
+  // 1. Build mappings
+  const keyToId = {};
+  const idToKey = {};
+  tests.forEach((test) => {
+    (test.parameters || []).forEach((param) => {
+      const key = getParamKey(param.name);
+      if (key) {
+        keyToId[key] = param.id;
+        idToKey[param.id] = key;
+      }
+    });
+  });
+
+  const changedKey = changedId ? idToKey[changedId] : null;
+
+  // Helper to get numeric value
+  const getVal = (key) => {
+    const id = keyToId[key];
+    if (!id) return null;
+    const val = res[id];
+    if (val === undefined || val === null || val === "") return null;
+    const num = parseFloat(val);
+    return isNaN(num) ? null : num;
+  };
+
+  // Helper to set value
+  const setVal = (key, value) => {
+    const id = keyToId[key];
+    if (id && value !== null && !isNaN(value) && isFinite(value)) {
+      const formatted = Number.isInteger(value) ? value.toString() : parseFloat(value.toFixed(2)).toString();
+      res[id] = formatted;
+    }
+  };
+
+  // --- 1. Bilirubin: db + ib = tb ---
+  const tb = getVal("tb");
+  const db = getVal("db");
+  const ib = getVal("ib");
+
+  if (changedKey === "tb") {
+    if (db !== null) setVal("ib", tb - db);
+    else if (ib !== null) setVal("db", tb - ib);
+  } else if (changedKey === "db") {
+    if (tb !== null) setVal("ib", tb - db);
+    else if (ib !== null) setVal("tb", db + ib);
+  } else if (changedKey === "ib") {
+    if (tb !== null) setVal("db", tb - ib);
+    else if (db !== null) setVal("tb", db + ib);
+  } else {
+    // Initial load or other parameter change: fill missing if 2 out of 3 present
+    if (tb !== null && db !== null && ib === null) setVal("ib", tb - db);
+    else if (tb !== null && ib !== null && db === null) setVal("db", tb - ib);
+    else if (db !== null && ib !== null && tb === null) setVal("tb", db + ib);
+  }
+
+  // --- 2. Proteins: alb + glob = tp ---
+  const tp = getVal("tp");
+  const alb = getVal("alb");
+  const glob = getVal("glob");
+
+  if (changedKey === "tp") {
+    if (alb !== null) setVal("glob", tp - alb);
+    else if (glob !== null) setVal("alb", tp - glob);
+  } else if (changedKey === "alb") {
+    if (tp !== null) setVal("glob", tp - alb);
+    else if (glob !== null) setVal("tp", alb + glob);
+  } else if (changedKey === "glob") {
+    if (tp !== null) setVal("alb", tp - glob);
+    else if (alb !== null) setVal("tp", alb + glob);
+  } else {
+    if (tp !== null && alb !== null && glob === null) setVal("glob", tp - alb);
+    else if (tp !== null && glob !== null && alb === null) setVal("alb", tp - glob);
+    else if (alb !== null && glob !== null && tp === null) setVal("tp", alb + glob);
+  }
+
+  // A/G Ratio: alb / glob
+  const updatedAlb = getVal("alb");
+  const updatedGlob = getVal("glob");
+  if (updatedAlb !== null && updatedGlob !== null && updatedGlob !== 0) {
+    setVal("agr", updatedAlb / updatedGlob);
+  }
+
+  // --- 3. Renal: bun * 2.14 = urea ---
+  const urea = getVal("urea");
+  const bun = getVal("bun");
+  const cr = getVal("cr");
+
+  if (changedKey === "urea") {
+    setVal("bun", urea / 2.14);
+  } else if (changedKey === "bun") {
+    setVal("urea", bun * 2.14);
+  } else {
+    if (urea !== null && bun === null) setVal("bun", urea / 2.14);
+    else if (bun !== null && urea === null) setVal("urea", bun * 2.14);
+  }
+
+  const updatedBun = getVal("bun");
+  const updatedUrea = getVal("urea");
+  if (cr !== null && cr !== 0) {
+    if (updatedBun !== null) setVal("bcr", updatedBun / cr);
+    if (updatedUrea !== null) setVal("ucr", updatedUrea / cr);
+  }
+
+  // --- 4. Lipids ---
+  const tg = getVal("tg");
+  // tg = vldl * 5 => vldl = tg / 5
+  if (changedKey === "tg") {
+    if (tg !== null) setVal("vldl", tg / 5);
+  } else if (changedKey === "vldl") {
+    const vldl = getVal("vldl");
+    if (vldl !== null) setVal("tg", vldl * 5);
+  } else {
+    if (tg !== null && getVal("vldl") === null) setVal("vldl", tg / 5);
+  }
+
+  // tc = hdl + ldl + vldl
+  const tc = getVal("tc");
+  const hdl = getVal("hdl");
+  const ldl = getVal("ldl");
+  const vldl = getVal("vldl");
+
+  if (changedKey === "tc") {
+    if (hdl !== null && vldl !== null) setVal("ldl", tc - hdl - vldl);
+    else if (ldl !== null && vldl !== null) setVal("hdl", tc - ldl - vldl);
+    else if (hdl !== null && ldl !== null) setVal("vldl", tc - hdl - ldl);
+  } else if (changedKey === "ldl") {
+    if (hdl !== null && vldl !== null) setVal("tc", hdl + ldl + vldl);
+    else if (tc !== null && vldl !== null) setVal("hdl", tc - ldl - vldl);
+    else if (tc !== null && hdl !== null) setVal("vldl", tc - hdl - ldl);
+  } else if (changedKey === "hdl") {
+    if (ldl !== null && vldl !== null) setVal("tc", hdl + ldl + vldl);
+    else if (tc !== null && vldl !== null) setVal("ldl", tc - hdl - vldl);
+    else if (tc !== null && ldl !== null) setVal("vldl", tc - hdl - ldl);
+  } else if (changedKey === "vldl" || (changedKey === "tg" && tg !== null)) {
+    const currentVldl = getVal("vldl");
+    if (currentVldl !== null) {
+      if (hdl !== null && ldl !== null) setVal("tc", hdl + ldl + currentVldl);
+      else if (tc !== null && hdl !== null) setVal("ldl", tc - hdl - currentVldl);
+      else if (tc !== null && ldl !== null) setVal("hdl", tc - ldl - currentVldl);
+    }
+  } else {
+    if (tc !== null && hdl !== null && vldl !== null && ldl === null) setVal("ldl", tc - hdl - vldl);
+    else if (hdl !== null && ldl !== null && vldl !== null && tc === null) setVal("tc", hdl + ldl + vldl);
+  }
+
+  const updatedTc = getVal("tc");
+  const updatedHdl = getVal("hdl");
+  const updatedLdl = getVal("ldl");
+  if (updatedHdl !== null && updatedHdl !== 0) {
+    if (updatedTc !== null) setVal("chr", updatedTc / updatedHdl);
+    if (updatedLdl !== null) setVal("lhr", updatedLdl / updatedHdl);
+  }
+
+  // --- 5. CBC: MCV, MCH, MCHC ---
+  const hb = getVal("hb");
+  const pcv = getVal("pcv");
+  const rbc = getVal("rbc");
+
+  if (pcv !== null && rbc !== null && rbc !== 0) {
+    setVal("mcv", (pcv / rbc) * 10);
+  }
+  if (hb !== null && rbc !== null && rbc !== 0) {
+    setVal("mch", (hb / rbc) * 10);
+  }
+  if (hb !== null && pcv !== null && pcv !== 0) {
+    setVal("mchc", (hb / pcv) * 100);
+  }
+
+  return res;
+};
 
 export default function TestReportPage() {
   const router = useRouter();
@@ -273,10 +581,29 @@ export default function TestReportPage() {
   };
 
   const handleResultValueChange = (paramId, val) => {
-    setResultValues({
+    const updatedValues = {
       ...resultValues,
       [paramId]: val
-    });
+    };
+    const finalValues = calculateAllDependents(updatedValues, resultTests, paramId);
+    setResultValues(finalValues);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const inputs = Array.from(document.querySelectorAll(".result-input-field input"));
+      const index = inputs.indexOf(e.target);
+      if (index > -1 && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+        inputs[index + 1].select();
+      } else {
+        const remarks = document.getElementById("remarks-field");
+        if (remarks) {
+          remarks.focus();
+        }
+      }
+    }
   };
 
   const handleSaveResults = async () => {
@@ -639,64 +966,142 @@ export default function TestReportPage() {
             horizontal: "right"
           }}
           PaperProps={{
-            sx: { p: 2.5, width: 450, borderRadius: 2, boxShadow: 8 }
+            sx: {
+              p: 2.5,
+              width: 520,
+              borderRadius: 3,
+              boxShadow: "0px 10px 30px rgba(0,0,0,0.12)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "#ffffff"
+            }
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: "text.primary", display: "flex", justifyContent: "space-between" }}>
-            <span>Patient: {selectedReg.name}</span>
-            <span style={{ fontSize: "0.75rem", color: "gray" }}>Reg: {selectedReg.regNo}</span>
-          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary", lineHeight: 1.2 }}>
+                {selectedReg.title} {selectedReg.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
+                Reg No: {selectedReg.regNo}
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseMenu} sx={{ color: "text.secondary" }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
           <Divider sx={{ mb: 2 }} />
-          <Grid container spacing={2}>
-            {/* Left Column */}
-            <Grid size={{ xs: 6 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Assign Collection")}>» Assign Collection</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6, fontWeight: 700, color: "primary.main" }} onClick={handleOpenSampleManagement}>■ Sample Management</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Add / Edit product")}>+ Add / Edit product</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6, fontWeight: 700, color: "primary.main" }} onClick={handleOpenResultEntry}>» Result Entry</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Show Result")}>≡ Show Result</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={handlePrintReport}>⏏ Report Print</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Print Barcode")}>Print Barcode</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Money Receipt")}>₹ Money Receipt</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Receipt inplace")}>₹ Receipt inplace</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6, color: "error.main" }} onClick={() => triggerAction("Cancel")}>✕ Cancel</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6, color: "error.main" }} onClick={handleDeleteRegistration}>Delete</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={handleEditRegistration}>Edit</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Edit Inplace")}>Edit Inplace</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Receipt All")}>₹ Receipt All</Button>
-              </Box>
-            </Grid>
 
-            {/* Vertical Line Divider */}
-            <Divider orientation="vertical" flexItem sx={{ mx: -0.5 }} />
+          <Box sx={{ display: "flex", gap: 2 }}>
+            {/* Left Column */}
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<AssignmentIcon />} onClick={() => triggerAction("Assign Collection")}>
+                Assign Collection
+              </Button>
+              <Button size="small" variant="text" sx={activeMenuButtonStyle} startIcon={<SampleIcon />} onClick={handleOpenSampleManagement}>
+                Sample Management
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<AddBoxIcon />} onClick={() => triggerAction("Add / Edit product")}>
+                Add / Edit product
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={activeMenuButtonStyle} startIcon={<ResultEntryIcon />} onClick={handleOpenResultEntry}>
+                Result Entry
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<VisibilityIcon />} onClick={() => triggerAction("Show Result")}>
+                Show Result
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PrintIcon />} onClick={handlePrintReport}>
+                Report Print
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<BarcodeIcon />} onClick={() => triggerAction("Print Barcode")}>
+                Print Barcode
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<ReceiptIcon />} onClick={() => triggerAction("Money Receipt")}>
+                Money Receipt
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PaymentIcon />} onClick={() => triggerAction("Receipt inplace")}>
+                Receipt inplace
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PaidIcon />} onClick={() => triggerAction("Receipt All")}>
+                Receipt All
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<EditIcon />} onClick={handleEditRegistration}>
+                Edit
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<EditInplaceIcon />} onClick={() => triggerAction("Edit Inplace")}>
+                Edit Inplace
+              </Button>
+              <Button size="small" variant="text" sx={dangerMenuButtonStyle} startIcon={<CancelIcon />} onClick={() => triggerAction("Cancel")}>
+                Cancel
+              </Button>
+              <Button size="small" variant="text" sx={dangerMenuButtonStyle} startIcon={<DeleteIcon />} onClick={handleDeleteRegistration}>
+                Delete
+              </Button>
+            </Box>
+
+            {/* Vertical Divider */}
+            <Divider orientation="vertical" flexItem sx={{ opacity: 0.6 }} />
 
             {/* Right Column */}
-            <Grid size={{ xs: 5.8 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, pl: 1 }}>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Add / Edit reminder")}>Add / Edit reminder</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Upload Report")}>Upload Report</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Register Again")}>Register Again</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Assign Branch")}>Assign Branch</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Transfer Patient")}>Transfer Patient</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Report Download")}>Report Download</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Compare Result")}>Compare Result</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Mark Urgent")}>Mark Urgent</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Extra Details")}>Extra Details</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Delhivery Note")}>Delhivery Note</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Upload Document")}>Upload Document</Button>
-                <Divider sx={{ my: 0.5 }} />
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Form F")}>Form F</Button>
-                <Button size="small" variant="text" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none", py: 0.6 }} onClick={() => triggerAction("Worksheet")}>Worksheet</Button>
-              </Box>
-            </Grid>
-          </Grid>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<ReminderIcon />} onClick={() => triggerAction("Add / Edit reminder")}>
+                Add / Edit reminder
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<UploadIcon />} onClick={() => triggerAction("Upload Report")}>
+                Upload Report
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PersonAddIcon />} onClick={() => triggerAction("Register Again")}>
+                Register Again
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<BranchIcon />} onClick={() => triggerAction("Assign Branch")}>
+                Assign Branch
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<TransferIcon />} onClick={() => triggerAction("Transfer Patient")}>
+                Transfer Patient
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<DownloadIcon />} onClick={() => triggerAction("Report Download")}>
+                Report Download
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<CompareIcon />} onClick={() => triggerAction("Compare Result")}>
+                Compare Result
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<UrgentIcon />} onClick={() => triggerAction("Mark Urgent")}>
+                Mark Urgent
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<InfoIcon />} onClick={() => triggerAction("Extra Details")}>
+                Extra Details
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<DeliveryIcon />} onClick={() => triggerAction("Delhivery Note")}>
+                Delhivery Note
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<UploadFileIcon />} onClick={() => triggerAction("Upload Document")}>
+                Upload Document
+              </Button>
+
+              <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<FormFIcon />} onClick={() => triggerAction("Form F")}>
+                Form F
+              </Button>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<WorksheetIcon />} onClick={() => triggerAction("Worksheet")}>
+                Worksheet
+              </Button>
+            </Box>
+          </Box>
         </Popover>
       )}
 
@@ -957,10 +1362,12 @@ export default function TestReportPage() {
                                 <TableCell>{param.unit}</TableCell>
                                 <TableCell>
                                   <TextField
+                                    className="result-input-field"
                                     size="small"
                                     fullWidth
                                     value={val}
                                     onChange={(e) => handleResultValueChange(param.id, e.target.value)}
+                                    onKeyDown={handleKeyDown}
                                     error={isAbnormal}
                                     sx={{
                                       "& .MuiInputBase-root": {
@@ -997,6 +1404,7 @@ export default function TestReportPage() {
             <Box sx={{ mt: 3 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>Report Remarks / Summary Note</Typography>
               <TextField
+                id="remarks-field"
                 fullWidth
                 multiline
                 rows={4}
