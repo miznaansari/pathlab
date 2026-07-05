@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import DashboardRangeSelector from "./RangeSelector";
+import { RegistrationChart, RevenueChart } from "./DashboardCharts";
 import {
   Grid,
   Card,
@@ -34,19 +36,61 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({ searchParams }) {
   // Ensure user is admin
   const admin = await requireAdmin("admin:view");
+  const params = await searchParams;
+  const range = params?.range || "7days";
 
-  // Fetch counts from DB
-  const totalRegistrations = await prisma.registration.count({ where: { workspaceId: admin.workspaceId, isDeleted: false } });
-  const pendingRegistrations = await prisma.registration.count({ where: { status: "Pending", workspaceId: admin.workspaceId, isDeleted: false } });
-  const completedRegistrations = await prisma.registration.count({ where: { status: "Completed", workspaceId: admin.workspaceId, isDeleted: false } });
+  // Calculate dynamic date filters
+  const now = new Date();
+  let startDate = new Date();
+  let endDate = new Date();
+
+  // Set times to cover full days
+  if (range === "30days") {
+    startDate.setDate(now.getDate() - 30);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === "thismonth") {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === "prevmonth") {
+    startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  } else if (range === "3months") {
+    startDate.setDate(now.getDate() - 90);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === "6months") {
+    startDate.setDate(now.getDate() - 180);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (range === "year") {
+    startDate.setDate(now.getDate() - 365);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else {
+    // Default: 7days
+    startDate.setDate(now.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+  }
+
+  const dateFilter = {
+    gte: startDate,
+    lte: endDate,
+  };
+
+  // Fetch counts from DB within selected range
+  const totalRegistrations = await prisma.registration.count({ where: { workspaceId: admin.workspaceId, isDeleted: false, date: dateFilter } });
+  const pendingRegistrations = await prisma.registration.count({ where: { status: "Pending", workspaceId: admin.workspaceId, isDeleted: false, date: dateFilter } });
+  const completedRegistrations = await prisma.registration.count({ where: { status: "Completed", workspaceId: admin.workspaceId, isDeleted: false, date: dateFilter } });
   const totalDoctors = await prisma.doctor.count({ where: { workspaceId: admin.workspaceId } });
 
-  // Fetch recent registrations
+  // Fetch recent registrations in this period
   const recentRegistrations = await prisma.registration.findMany({
-    where: { workspaceId: admin.workspaceId, isDeleted: false },
+    where: { workspaceId: admin.workspaceId, isDeleted: false, date: dateFilter },
     orderBy: { date: "desc" },
     take: 5,
     include: {
@@ -59,9 +103,9 @@ export default async function AdminDashboardPage() {
     },
   });
 
-  // Calculate total billing amount (sum of totalAmount + collectionCharge)
+  // Calculate total billing amount (sum of totalAmount + collectionCharge) in this period
   const billingSummary = await prisma.registration.aggregate({
-    where: { workspaceId: admin.workspaceId, isDeleted: false },
+    where: { workspaceId: admin.workspaceId, isDeleted: false, date: dateFilter },
     _sum: {
       totalAmount: true,
       collectionCharge: true,
@@ -71,6 +115,94 @@ export default async function AdminDashboardPage() {
 
   const totalBilling = Number(billingSummary._sum.totalAmount || 0) + Number(billingSummary._sum.collectionCharge || 0);
   const totalCollected = Number(billingSummary._sum.receivedAmount || 0);
+
+  // Fetch all registrations in the selected date range to calculate daily charts
+  const registrationsInPeriod = await prisma.registration.findMany({
+    where: {
+      workspaceId: admin.workspaceId,
+      isDeleted: false,
+      date: dateFilter,
+    },
+    select: {
+      date: true,
+      totalAmount: true,
+      collectionCharge: true,
+    },
+    orderBy: {
+      date: "asc",
+    },
+  });
+
+  // Calculate aggregated data
+  const isMonthly = ["3months", "6months", "year"].includes(range);
+  const aggregatedData = {};
+
+  if (isMonthly) {
+    // Generate month keys from startDate to endDate (e.g. YYYY-MM)
+    const tempDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const endLimit = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    while (tempDate <= endLimit) {
+      const year = tempDate.getFullYear();
+      const month = String(tempDate.getMonth() + 1).padStart(2, "0");
+      const key = `${year}-${month}`;
+      aggregatedData[key] = { count: 0, revenue: 0 };
+      tempDate.setMonth(tempDate.getMonth() + 1);
+    }
+  } else {
+    // Generate daily keys
+    const tempDate = new Date(startDate);
+    while (tempDate <= endDate) {
+      const key = tempDate.toISOString().substring(0, 10);
+      aggregatedData[key] = { count: 0, revenue: 0 };
+      tempDate.setDate(tempDate.getDate() + 1);
+    }
+  }
+
+  // Populate from database
+  registrationsInPeriod.forEach((reg) => {
+    let key;
+    if (isMonthly) {
+      const year = reg.date.getFullYear();
+      const month = String(reg.date.getMonth() + 1).padStart(2, "0");
+      key = `${year}-${month}`;
+    } else {
+      key = reg.date.toISOString().substring(0, 10);
+    }
+    
+    if (!aggregatedData[key]) {
+      aggregatedData[key] = { count: 0, revenue: 0 };
+    }
+    aggregatedData[key].count += 1;
+    aggregatedData[key].revenue += Number(reg.totalAmount || 0) + Number(reg.collectionCharge || 0);
+  });
+
+  const chartData = Object.entries(aggregatedData).map(([key, val]) => {
+    let label = "";
+    if (isMonthly) {
+      const [year, month] = key.split("-");
+      const dateObj = new Date(Number(year), Number(month) - 1, 1);
+      label = dateObj.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    } else {
+      const dateObj = new Date(key);
+      label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+    return {
+      date: key,
+      label,
+      count: val.count,
+      revenue: val.revenue,
+    };
+  });
+
+
+  const formatPeriodDate = (d) => {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+  const periodDateRangeStr = `${formatPeriodDate(startDate)} - ${formatPeriodDate(endDate)}`;
 
   // Helper to format date
   const formatDate = (dateStr) => {
@@ -113,13 +245,21 @@ export default async function AdminDashboardPage() {
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* Header Overview */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.main" }}>
-          Welcome back, {admin.name}!
-        </Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
-          Here is the current overview of your laboratory operations, patient registrations, and accounts.
-        </Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 4 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.main" }}>
+            Welcome back, {admin.name}!
+          </Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+            Here is the current overview of your laboratory operations, patient registrations, and accounts.
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: { xs: "flex-start", sm: "flex-end" }, gap: 0.5 }}>
+          <DashboardRangeSelector initialRange={range} />
+          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, mt: 0.5 }}>
+            Period: {periodDateRangeStr}
+          </Typography>
+        </Box>
       </Box>
 
       {/* Stats Grid */}
@@ -152,6 +292,37 @@ export default async function AdminDashboardPage() {
             </Card>
           </Grid>
         ))}
+      </Grid>
+
+      {/* Dynamic Trends Charts */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Patient Registrations Trend
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {isMonthly ? "Monthly count of patient registrations in this period" : "Daily count of patient registrations in this period"}
+              </Typography>
+              <RegistrationChart data={chartData} />
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Revenue Collection Trend
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {isMonthly ? "Monthly invoiced billing amount (₹) in this period" : "Daily invoiced billing amount (₹) in this period"}
+              </Typography>
+              <RevenueChart data={chartData} />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Financials & Quick Links & Recent items */}

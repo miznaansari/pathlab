@@ -6,8 +6,8 @@ import {
   Box,
   Card,
   CardContent,
-  Grid,
   TextField,
+  Grid,
   Button,
   Typography,
   Table,
@@ -358,6 +358,35 @@ const calculateAllDependents = (values, tests, changedId) => {
 
   return res;
 };
+const isOutOfRange = (valStr, min, max) => {
+  if (!valStr || min === null || max === null) return false;
+  const num = parseFloat(valStr);
+  if (isNaN(num)) return false;
+  return num < min || num > max;
+};
+
+const getReferenceRange = (param, reg) => {
+  const isBaby = reg.ageUnit !== "Year" || reg.age < 12;
+  if (isBaby) {
+    return {
+      rangeStr: param.normalRangeBaby || param.normalRangeDefault || "Normal",
+      min: param.minValBaby,
+      max: param.maxValBaby,
+    };
+  }
+  if (reg.gender === "Female") {
+    return {
+      rangeStr: param.normalRangeFemale || param.normalRangeDefault || "Normal",
+      min: param.minValFemale,
+      max: param.maxValFemale,
+    };
+  }
+  return {
+    rangeStr: param.normalRangeMale || param.normalRangeDefault || "Normal",
+    min: param.minValMale,
+    max: param.maxValMale,
+  };
+};
 
 export default function TestReportPage() {
   const router = useRouter();
@@ -399,6 +428,9 @@ export default function TestReportPage() {
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
 
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [reportPreviewOpen, setReportPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
   const [adminSettings, setAdminSettings] = useState({ framePdfUrl: "", useFrameDefault: true });
 
   useEffect(() => {
@@ -425,7 +457,7 @@ export default function TestReportPage() {
       if (startDate) queryParams.set("startDate", `${startDate}T00:00:00.000Z`);
       if (endDate) queryParams.set("endDate", `${endDate}T23:59:59.999Z`);
       if (search) queryParams.set("search", search);
-      
+
       const res = await fetch(`/admin/api/registrations?${queryParams.toString()}`).then((r) => r.json());
       if (res.success) {
         setRegistrations(res.registrations);
@@ -506,6 +538,27 @@ export default function TestReportPage() {
   const handlePrintReport = () => {
     handleCloseMenu();
     setPrintDialogOpen(true);
+  };
+
+  // Show Report Directly
+  const handleShowReportDirectly = async () => {
+    handleCloseMenu();
+    setPreviewLoading(true);
+    setReportPreviewOpen(true);
+    try {
+      const res = await fetch(`/admin/api/registrations/${selectedReg.id}/parameters`).then((r) => r.json());
+      if (res.success) {
+        setPreviewData(res.registration);
+      } else {
+        showToast(res.message, "error");
+        setReportPreviewOpen(false);
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to load report preview", "error");
+      setReportPreviewOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   // --- SAMPLE MANAGEMENT ---
@@ -711,6 +764,24 @@ export default function TestReportPage() {
   const handleConfigParamChange = (index, field, value) => {
     const updated = [...configParams];
     updated[index][field] = value;
+
+    const getAutoRangeString = (min, max) => {
+      const trimmedMin = String(min === null || min === undefined ? "" : min).trim();
+      const trimmedMax = String(max === null || max === undefined ? "" : max).trim();
+      if (trimmedMin && trimmedMax) return `${trimmedMin} - ${trimmedMax}`;
+      if (trimmedMin) return `>= ${trimmedMin}`;
+      if (trimmedMax) return `<= ${trimmedMax}`;
+      return "";
+    };
+
+    if (field === "minValMale" || field === "maxValMale") {
+      updated[index].normalRangeMale = getAutoRangeString(updated[index].minValMale, updated[index].maxValMale);
+    } else if (field === "minValFemale" || field === "maxValFemale") {
+      updated[index].normalRangeFemale = getAutoRangeString(updated[index].minValFemale, updated[index].maxValFemale);
+    } else if (field === "minValBaby" || field === "maxValBaby") {
+      updated[index].normalRangeBaby = getAutoRangeString(updated[index].minValBaby, updated[index].maxValBaby);
+    }
+
     setConfigParams(updated);
   };
 
@@ -1034,7 +1105,7 @@ export default function TestReportPage() {
               <Button size="small" variant="text" sx={activeMenuButtonStyle} startIcon={<ResultEntryIcon />} onClick={handleOpenResultEntry}>
                 Result Entry
               </Button>
-              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<VisibilityIcon />} onClick={handlePrintReport}>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<VisibilityIcon />} onClick={handleShowReportDirectly}>
                 Show Result
               </Button>
               <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PrintIcon />} onClick={handlePrintReport}>
@@ -1497,17 +1568,9 @@ export default function TestReportPage() {
             ) : (
               <Stack spacing={2} sx={{ maxHeight: 450, overflowY: "auto", pr: 1 }}>
                 {configParams.map((param, index) => (
-                  <Card variant="outlined" key={index} sx={{ p: 2, position: "relative" }}>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleRemoveConfigParam(index)}
-                      sx={{ position: "absolute", top: 8, right: 8 }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 6 }}>
+                  <Card variant="outlined" key={index} sx={{ p: 2, overflow: "visible" }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid size={{ xs: 5.5 }}>
                         <TextField
                           label="Parameter Name"
                           size="small"
@@ -1516,7 +1579,7 @@ export default function TestReportPage() {
                           onChange={(e) => handleConfigParamChange(index, "name", e.target.value)}
                         />
                       </Grid>
-                      <Grid size={{ xs: 3 }}>
+                      <Grid size={{ xs: 2.5 }}>
                         <TextField
                           label="Unit"
                           size="small"
@@ -1534,6 +1597,16 @@ export default function TestReportPage() {
                           onChange={(e) => handleConfigParamChange(index, "normalRangeDefault", e.target.value)}
                         />
                       </Grid>
+                      <Grid size={{ xs: 1 }} sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveConfigParam(index)}
+                          title="Remove Parameter"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Grid>
 
                       <Grid size={{ xs: 12 }} sx={{ my: 0.5 }}><Divider /></Grid>
 
@@ -1544,7 +1617,7 @@ export default function TestReportPage() {
                           <TextField label="Min" size="small" type="number" value={param.minValMale} onChange={(e) => handleConfigParamChange(index, "minValMale", e.target.value)} />
                           <TextField label="Max" size="small" type="number" value={param.maxValMale} onChange={(e) => handleConfigParamChange(index, "maxValMale", e.target.value)} />
                         </Stack>
-                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} value={param.normalRangeMale} onChange={(e) => handleConfigParamChange(index, "normalRangeMale", e.target.value)} />
+                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} disabled value={param.normalRangeMale} />
                       </Grid>
 
                       {/* Female Ranges */}
@@ -1554,7 +1627,7 @@ export default function TestReportPage() {
                           <TextField label="Min" size="small" type="number" value={param.minValFemale} onChange={(e) => handleConfigParamChange(index, "minValFemale", e.target.value)} />
                           <TextField label="Max" size="small" type="number" value={param.maxValFemale} onChange={(e) => handleConfigParamChange(index, "maxValFemale", e.target.value)} />
                         </Stack>
-                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} value={param.normalRangeFemale} onChange={(e) => handleConfigParamChange(index, "normalRangeFemale", e.target.value)} />
+                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} disabled value={param.normalRangeFemale} />
                       </Grid>
 
                       {/* Baby Ranges */}
@@ -1564,7 +1637,7 @@ export default function TestReportPage() {
                           <TextField label="Min" size="small" type="number" value={param.minValBaby} onChange={(e) => handleConfigParamChange(index, "minValBaby", e.target.value)} />
                           <TextField label="Max" size="small" type="number" value={param.maxValBaby} onChange={(e) => handleConfigParamChange(index, "maxValBaby", e.target.value)} />
                         </Stack>
-                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} value={param.normalRangeBaby} onChange={(e) => handleConfigParamChange(index, "normalRangeBaby", e.target.value)} />
+                        <TextField label="Display Range Label" size="small" fullWidth sx={{ mt: 1 }} disabled value={param.normalRangeBaby} />
                       </Grid>
                     </Grid>
                   </Card>
@@ -1596,7 +1669,7 @@ export default function TestReportPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Choose whether to overlay the clinical report onto your pre-printed letterhead template or generate it on a blank page.
           </Typography>
-          
+
           <Stack spacing={2} sx={{ mt: 1 }}>
             {adminSettings.framePdfUrl ? (
               <Button
@@ -1642,6 +1715,148 @@ export default function TestReportPage() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setPrintDialogOpen(false)} variant="text" color="inherit">
             Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- REPORT PREVIEW DIALOG --- */}
+      <Dialog
+        open={reportPreviewOpen}
+        onClose={() => setReportPreviewOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 1, maxHeight: "90vh" } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AssignmentIcon color="primary" />
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Report Preview</Typography>
+          </Box>
+          <IconButton onClick={() => setReportPreviewOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ py: 2 }}>
+          {previewLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : previewData ? (
+            <Stack spacing={3}>
+              {/* Demographics Card */}
+              <Card variant="outlined" sx={{ bgcolor: "grey.50", p: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Patient Name:</strong> {previewData.title} {previewData.name}</Typography>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Lab No / ID:</strong> {previewData.labId} ({previewData.regNo})</Typography>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Ref. Doctor:</strong> {previewData.refBy?.name || "Self / Walk-in"}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Age / Gender:</strong> {previewData.age} {previewData.ageUnit} / {previewData.gender}</Typography>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}><strong>Registered On:</strong> {new Date(previewData.date).toLocaleString("en-IN")}</Typography>
+                    <Typography variant="body2">
+                      <strong>Status:</strong>{" "}
+                      <Badge 
+                        badgeContent={previewData.status} 
+                        color={previewData.status === "Completed" ? "success" : "warning"}
+                        sx={{ "& .MuiBadge-badge": { position: "static", transform: "none", fontWeight: 700 } }}
+                      />
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Card>
+
+              {/* Tests list */}
+              {previewData.tests?.map((regTest, tIdx) => {
+                const test = regTest.test;
+                return (
+                  <Card variant="outlined" key={tIdx} sx={{ overflow: "hidden" }}>
+                    <Box sx={{ bgcolor: "rgba(15, 118, 110, 0.08)", borderBottom: "1px solid", borderColor: "divider", px: 2, py: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "primary.main" }}>
+                        {test.name} ({test.code})
+                      </Typography>
+                    </Box>
+                    <TableContainer component={Paper} elevation={0} square>
+                      <Table size="small">
+                        <TableHead sx={{ bgcolor: "grey.50" }}>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 700 }}>Parameter Name</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Observed Value</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Unit</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Normal Reference Range</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {test.parameters?.map((param, pIdx) => {
+                            const result = previewData.results?.find(r => r.testParameterId === param.id);
+                            const val = result ? result.value : "";
+                            const ref = getReferenceRange(param, previewData);
+                            const isAbnormal = isOutOfRange(val, ref.min, ref.max);
+                            
+                            const isSectionHeader = !param.unit && !ref.rangeStr && !val;
+                            
+                            return (
+                              <TableRow key={pIdx} hover>
+                                <TableCell sx={{ fontWeight: isSectionHeader ? 700 : 500, color: isSectionHeader ? "text.secondary" : "text.primary" }}>
+                                  {param.name}
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: isAbnormal ? 700 : 500, 
+                                  color: isAbnormal ? "error.main" : "text.primary" 
+                                }}>
+                                  {val || (isSectionHeader ? "" : "-")}
+                                </TableCell>
+                                <TableCell>{param.unit || "-"}</TableCell>
+                                <TableCell>{ref.rangeStr || "-"}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Card>
+                );
+              })}
+
+              {/* Remarks */}
+              {previewData.remark && (
+                <Card variant="outlined" sx={{ p: 2, bgcolor: "warning.50", borderColor: "warning.200" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "warning.800" }}>
+                    Report Remarks / Summary Note
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>{previewData.remark}</Typography>
+                </Card>
+              )}
+            </Stack>
+          ) : (
+            <Typography color="text.secondary">No preview data available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1, justifyContent: "flex-end" }}>
+          {previewData && (
+            <>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={() => window.open(`/api/print-report/${previewData.id}?withFrame=false`, "_blank")}
+              >
+                Download Without Frame
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={() => window.open(`/api/print-report/${previewData.id}?withFrame=true`, "_blank")}
+              >
+                Download With Frame
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setReportPreviewOpen(false)} variant="text" color="inherit" size="small">
+            Close
           </Button>
         </DialogActions>
       </Dialog>
