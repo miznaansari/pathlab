@@ -3,8 +3,6 @@
 import React, { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Search, Check, X, Clock, ShieldCheck, LogOut } from "lucide-react";
-import { approveUserAction, rejectUserAction, changeUserRoleAction } from "@/app/actions/adminActions";
-import { logoutAction } from "@/app/actions/authActions";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/Table";
@@ -22,7 +20,7 @@ export default function UserApproveTable({ initialUsers = [], roles = [] }) {
   const [isPending, startTransition] = useTransition();
 
   const handleLogout = async () => {
-    const res = await logoutAction();
+    const res = await fetch("/admin/api/auth/logout", { method: "POST" }).then((r) => r.json());
     if (res.success) {
       toast.success("Logged out successfully");
       router.push(res.redirect);
@@ -34,7 +32,11 @@ export default function UserApproveTable({ initialUsers = [], roles = [] }) {
     setPendingActionId({ id: userId, type: "approve" });
     startTransition(async () => {
       try {
-        const res = await approveUserAction(userId);
+        const res = await fetch("/admin/api/approvals/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        }).then((r) => r.json());
         if (res.success) {
           toast.success(res.message);
           setUsers((prev) =>
@@ -57,7 +59,11 @@ export default function UserApproveTable({ initialUsers = [], roles = [] }) {
     setPendingActionId({ id: userId, type: "reject" });
     startTransition(async () => {
       try {
-        const res = await rejectUserAction(userId);
+        const res = await fetch("/admin/api/approvals/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        }).then((r) => r.json());
         if (res.success) {
           toast.success(res.message);
           setUsers((prev) =>
@@ -80,7 +86,11 @@ export default function UserApproveTable({ initialUsers = [], roles = [] }) {
     setPendingActionId({ id: userId, type: "role" });
     startTransition(async () => {
       try {
-        const res = await changeUserRoleAction(userId, roleId);
+        const res = await fetch("/admin/api/approvals/change-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, roleId }),
+        }).then((r) => r.json());
         if (res.success) {
           toast.success(res.message);
           setUsers((prev) =>

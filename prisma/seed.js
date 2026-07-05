@@ -3,10 +3,55 @@ const prisma = new PrismaClient();
 const bcrypt = require("bcryptjs");
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("Seeding database with workspaces and superadmin...");
 
-  // 1. Seed Customer Roles (UserRole)
-  const customerRole = await prisma.userRole.upsert({
+  // 1. Create/Seed Default Workspace
+  const defaultWorkspace = await prisma.workspace.upsert({
+    where: { slug: "default-lab" },
+    update: {},
+    create: {
+      name: "Default Lab",
+      slug: "default-lab",
+      isActive: true,
+    },
+  });
+  console.log("Default Workspace seeded.");
+
+  // 2. Create/Seed Default SuperAdmin
+  const superAdminEmail = "superadmin@pathlab.com";
+  const superAdminHashedPassword = await bcrypt.hash("Password123", 10);
+  await prisma.superAdmin.upsert({
+    where: { email: superAdminEmail },
+    update: {},
+    create: {
+      name: "Super Admin",
+      email: superAdminEmail,
+      password: superAdminHashedPassword,
+    },
+  });
+  console.log("Default SuperAdmin seeded.");
+
+  // 3. Backfill Workspace ID for existing records
+  await prisma.admin.updateMany({
+    where: { workspaceId: null },
+    data: { workspaceId: defaultWorkspace.id },
+  });
+  await prisma.doctor.updateMany({
+    where: { workspaceId: null },
+    data: { workspaceId: defaultWorkspace.id },
+  });
+  await prisma.registration.updateMany({
+    where: { workspaceId: null },
+    data: { workspaceId: defaultWorkspace.id },
+  });
+  await prisma.user.updateMany({
+    where: { workspaceId: null },
+    data: { workspaceId: defaultWorkspace.id },
+  });
+  console.log("Workspace backfilled for existing data.");
+
+  // 4. Seed Customer Roles (UserRole)
+  await prisma.userRole.upsert({
     where: { id: 2 },
     update: {},
     create: {
@@ -34,8 +79,8 @@ async function main() {
   }
   console.log("Customer roles & permissions seeded.");
 
-  // 2. Seed Admin Roles (AdminRole)
-  const adminRole = await prisma.adminRole.upsert({
+  // 5. Seed Admin Roles (AdminRole)
+  await prisma.adminRole.upsert({
     where: { id: 1 },
     update: {},
     create: {
@@ -45,7 +90,15 @@ async function main() {
   });
 
   // Seed Admin Permissions (AdminRolePermission)
-  const adminPermissions = ["admin:approve", "admin:reject", "admin:view", "customer:view"];
+  const adminPermissions = [
+    "admin:approve", 
+    "admin:reject", 
+    "admin:view", 
+    "customer:view", 
+    "admin:create", 
+    "admin:write", 
+    "admin:delete"
+  ];
   for (const perm of adminPermissions) {
     await prisma.adminRolePermission.upsert({
       where: {
@@ -63,13 +116,15 @@ async function main() {
   }
   console.log("Admin roles & permissions seeded.");
 
-  // 3. Seed Default Admin User
+  // 6. Seed Default Admin User associated with Default Workspace
   const adminEmail = "admin@pathlab.com";
   const hashedPassword = await bcrypt.hash("Password123", 10);
 
   await prisma.admin.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      workspaceId: defaultWorkspace.id,
+    },
     create: {
       name: "System Admin",
       email: adminEmail,
@@ -78,11 +133,12 @@ async function main() {
       roleId: 1, // Admin Role
       isEmailVerified: true,
       isApproved: true,
+      workspaceId: defaultWorkspace.id,
     },
   });
   console.log("Default Admin user seeded.");
 
-  // 4. Seed Default Doctors
+  // 7. Seed Default Doctors
   const doctors = [
     { name: "Ahmadi", code: "1" },
     { name: "ANAND KUMAR", code: "2" },
@@ -92,17 +148,23 @@ async function main() {
 
   for (const doc of doctors) {
     await prisma.doctor.upsert({
-      where: { code: doc.code },
+      where: {
+        workspaceId_code: {
+          workspaceId: defaultWorkspace.id,
+          code: doc.code,
+        },
+      },
       update: {},
       create: {
         name: doc.name,
         code: doc.code,
+        workspaceId: defaultWorkspace.id,
       },
     });
   }
   console.log("Default Doctors seeded.");
 
-  // 5. Seed Tests from complete_test_names.json
+  // 8. Seed Tests from complete_test_names.json (Global)
   const fs = require("fs");
   const path = require("path");
   try {
@@ -142,7 +204,7 @@ async function main() {
     } else {
       console.log("complete_test_names.json file not found at " + filePath);
     }
-    // 6. Post-process and seed parameters for all tests
+    // 9. Post-process and seed parameters for all tests
     await processTestParameters();
   } catch (error) {
     console.error("Error seeding tests:", error);

@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { toast } from "sonner";
 import { Mail, Lock, ArrowRight } from "lucide-react";
-import { loginAction } from "@/app/actions/authActions";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
@@ -137,7 +136,12 @@ function LoginForm() {
     setIsLoading(true);
     setStatusMessage(null);
     try {
-      const res = await loginAction(data);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json());
+
       if (res.success) {
         toast.success(res.message);
         router.push(res.redirect);

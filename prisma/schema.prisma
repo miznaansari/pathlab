@@ -7,6 +7,40 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Workspace {
+  id            Int            @id @default(autoincrement())
+  name          String
+  slug          String         @unique
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  admins        Admin[]
+  doctors       Doctor[]
+  registrations Registration[]
+  users         User[]
+}
+
+model SuperAdmin {
+  id        Int                 @id @default(autoincrement())
+  name      String
+  email     String              @unique
+  password  String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  sessions  SuperAdminSession[]
+}
+
+model SuperAdminSession {
+  id           Int        @id @default(autoincrement())
+  superAdminId Int
+  token        String     @unique @db.VarChar(500)
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime   @default(now())
+  superAdmin   SuperAdmin @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+}
+
 model User {
   id                       Int           @id @default(autoincrement())
   name                     String
@@ -24,6 +58,9 @@ model User {
   updatedAt                DateTime      @updatedAt
   role                     UserRole      @relation(fields: [roleId], references: [id])
   sessions                 UserSession[]
+  
+  workspaceId              Int?
+  workspace                Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model UserSession {
@@ -62,10 +99,20 @@ model Admin {
   roleId          Int            @default(1) // Default admin role
   isEmailVerified Boolean        @default(true)
   isApproved      Boolean        @default(true)
+  isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   role            AdminRole      @relation(fields: [roleId], references: [id])
   sessions        AdminSession[]
+
+  // PDF letterhead configurations
+  framePdfUrl     String?        @db.VarChar(500)
+  headerMargin    Int            @default(140)
+  footerMargin    Int            @default(100)
+  useFrameDefault Boolean        @default(true)
+
+  workspaceId     Int?
+  workspace       Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model AdminSession {
@@ -98,12 +145,17 @@ model AdminRolePermission {
 model Doctor {
   id                  Int            @id @default(autoincrement())
   name                String
-  code                String?        @unique
+  code                String?
   lastPaid            DateTime?
   registrations       Registration[] @relation("RefBy")
   secondRegistrations Registration[] @relation("SecondRef")
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+
+  workspaceId         Int?
+  workspace           Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, code])
 }
 
 model Test {
@@ -122,8 +174,8 @@ model Registration {
   id               Int                @id @default(autoincrement())
   billOn           String             @default("Patient Rate")
   mobileNo         String
-  labId            String             @unique
-  regNo            String             @unique
+  labId            String
+  regNo            String
   date             DateTime           @default(now())
   title            String             // Mr., Mrs., Dr.
   name             String
@@ -156,6 +208,12 @@ model Registration {
   results          PatientResult[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+
+  workspaceId      Int?
+  workspace        Workspace?         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, labId])
+  @@unique([workspaceId, regNo])
 }
 
 model RegistrationTest {

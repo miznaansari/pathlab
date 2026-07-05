@@ -72,15 +72,7 @@ import {
   Article as WorksheetIcon,
   Paid as PaidIcon
 } from "@mui/icons-material";
-import {
-  getRegistrations,
-  deleteRegistration,
-  getRegistrationSamples,
-  saveSampleDetails,
-  getRegistrationTestParameters,
-  savePatientResults,
-  saveTestParameters
-} from "@/app/actions/registrationActions";
+// Server Action imports removed - using REST API instead
 
 const menuButtonStyle = {
   justifyContent: "flex-start",
@@ -406,14 +398,35 @@ export default function TestReportPage() {
   // Toast notifications
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
 
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [adminSettings, setAdminSettings] = useState({ framePdfUrl: "", useFrameDefault: true });
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const res = await fetch("/admin/api/settings").then((r) => r.json());
+        if (res.success && res.settings) {
+          setAdminSettings({
+            framePdfUrl: res.settings.framePdfUrl || "",
+            useFrameDefault: res.settings.useFrameDefault ?? true
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load admin settings in test-report page:", err);
+      }
+    }
+    fetchSettings();
+  }, [printDialogOpen]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await getRegistrations({
-        startDate: startDate ? `${startDate}T00:00:00.000Z` : undefined,
-        endDate: endDate ? `${endDate}T23:59:59.999Z` : undefined,
-        search: search || undefined
-      });
+      const queryParams = new URLSearchParams();
+      if (startDate) queryParams.set("startDate", `${startDate}T00:00:00.000Z`);
+      if (endDate) queryParams.set("endDate", `${endDate}T23:59:59.999Z`);
+      if (search) queryParams.set("search", search);
+      
+      const res = await fetch(`/admin/api/registrations?${queryParams.toString()}`).then((r) => r.json());
       if (res.success) {
         setRegistrations(res.registrations);
       }
@@ -477,7 +490,7 @@ export default function TestReportPage() {
       return;
     }
     try {
-      const res = await deleteRegistration(selectedReg.id);
+      const res = await fetch(`/admin/api/registrations/${selectedReg.id}`, { method: "DELETE" }).then((r) => r.json());
       if (res.success) {
         showToast(res.message, "success");
         loadData();
@@ -492,7 +505,7 @@ export default function TestReportPage() {
   // Print Report
   const handlePrintReport = () => {
     handleCloseMenu();
-    window.print();
+    setPrintDialogOpen(true);
   };
 
   // --- SAMPLE MANAGEMENT ---
@@ -500,7 +513,7 @@ export default function TestReportPage() {
     const regId = selectedReg.id;
     handleCloseMenu();
     try {
-      const res = await getRegistrationSamples(regId);
+      const res = await fetch(`/admin/api/registrations/${regId}/samples`).then((r) => r.json());
       if (res.success) {
         const rows = res.registration.tests.map((rt) => ({
           testId: rt.test.id,
@@ -534,7 +547,11 @@ export default function TestReportPage() {
   const handleSaveSamples = async () => {
     setSampleSaving(true);
     try {
-      const res = await saveSampleDetails(selectedReg.id, sampleRows);
+      const res = await fetch(`/admin/api/registrations/${selectedReg.id}/samples`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sampleRows),
+      }).then((r) => r.json());
       if (res.success) {
         showToast(res.message, "success");
         setSampleDialogOpen(false);
@@ -556,7 +573,7 @@ export default function TestReportPage() {
     try {
 
       // 2. Fetch test parameters
-      const res = await getRegistrationTestParameters(regId);
+      const res = await fetch(`/admin/api/registrations/${regId}/parameters`).then((r) => r.json());
       if (res.success) {
         setResultRegDetails(res.registration);
 
@@ -615,7 +632,11 @@ export default function TestReportPage() {
         value: resultValues[paramId]
       }));
 
-      const res = await savePatientResults(resultRegDetails.id, resultsData, reportNotes);
+      const res = await fetch(`/admin/api/registrations/${resultRegDetails.id}/results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultsData, reportNotes }),
+      }).then((r) => r.json());
       if (res.success) {
         showToast(res.message, "success");
         setResultDialogOpen(false);
@@ -721,14 +742,18 @@ export default function TestReportPage() {
 
   const handleSaveConfigParameters = async () => {
     try {
-      const res = await saveTestParameters(configTest.id, configParams);
+      const res = await fetch(`/admin/api/registrations/${configTest.id}/parameters`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parametersList: configParams }),
+      }).then((r) => r.json());
       if (res.success) {
         showToast(res.message, "success");
         setConfigDialogOpen(false);
 
         // Re-load result entry details to show updated parameters
         if (resultRegDetails) {
-          const freshParams = await getRegistrationTestParameters(resultRegDetails.id);
+          const freshParams = await fetch(`/admin/api/registrations/${resultRegDetails.id}/parameters`).then((r) => r.json());
           if (freshParams.success) {
             setResultRegDetails(freshParams.registration);
             setResultTests(freshParams.registration.tests.map(rt => rt.test));
@@ -1009,7 +1034,7 @@ export default function TestReportPage() {
               <Button size="small" variant="text" sx={activeMenuButtonStyle} startIcon={<ResultEntryIcon />} onClick={handleOpenResultEntry}>
                 Result Entry
               </Button>
-              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<VisibilityIcon />} onClick={() => triggerAction("Show Result")}>
+              <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<VisibilityIcon />} onClick={handlePrintReport}>
                 Show Result
               </Button>
               <Button size="small" variant="text" sx={menuButtonStyle} startIcon={<PrintIcon />} onClick={handlePrintReport}>
@@ -1555,6 +1580,71 @@ export default function TestReportPage() {
           </DialogActions>
         </Dialog>
       )}
+
+      {/* --- PRINT OPTION DIALOG --- */}
+      <Dialog
+        open={printDialogOpen}
+        onClose={() => setPrintDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          🖨️ Select Print Option
+        </DialogTitle>
+        <DialogContent sx={{ pb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Choose whether to overlay the clinical report onto your pre-printed letterhead template or generate it on a blank page.
+          </Typography>
+          
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {adminSettings.framePdfUrl ? (
+              <Button
+                variant="contained"
+                fullWidth
+                color="primary"
+                onClick={() => {
+                  window.open(`/api/print-report/${selectedReg?.id}?withFrame=true`, "_blank");
+                  setPrintDialogOpen(false);
+                }}
+                sx={{ py: 1.2, fontWeight: 700 }}
+              >
+                Print with Letterhead Frame
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                fullWidth
+                color="warning"
+                onClick={() => {
+                  router.push("/admin/settings");
+                  setPrintDialogOpen(false);
+                }}
+                sx={{ py: 1.2, fontWeight: 700 }}
+              >
+                Upload your Frame
+              </Button>
+            )}
+
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                window.open(`/api/print-report/${selectedReg?.id}?withFrame=false`, "_blank");
+                setPrintDialogOpen(false);
+              }}
+              sx={{ py: 1.2, fontWeight: 700 }}
+            >
+              Print without Letterhead Frame
+            </Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPrintDialogOpen(false)} variant="text" color="inherit">
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* --- TOAST ALERTS --- */}
       <Snackbar

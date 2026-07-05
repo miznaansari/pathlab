@@ -39,13 +39,14 @@ export default async function AdminDashboardPage() {
   const admin = await requireAdmin("admin:view");
 
   // Fetch counts from DB
-  const totalRegistrations = await prisma.registration.count();
-  const pendingRegistrations = await prisma.registration.count({ where: { status: "Pending" } });
-  const completedRegistrations = await prisma.registration.count({ where: { status: "Completed" } });
-  const totalDoctors = await prisma.doctor.count();
+  const totalRegistrations = await prisma.registration.count({ where: { workspaceId: admin.workspaceId } });
+  const pendingRegistrations = await prisma.registration.count({ where: { status: "Pending", workspaceId: admin.workspaceId } });
+  const completedRegistrations = await prisma.registration.count({ where: { status: "Completed", workspaceId: admin.workspaceId } });
+  const totalDoctors = await prisma.doctor.count({ where: { workspaceId: admin.workspaceId } });
 
   // Fetch recent registrations
   const recentRegistrations = await prisma.registration.findMany({
+    where: { workspaceId: admin.workspaceId },
     orderBy: { date: "desc" },
     take: 5,
     include: {
@@ -60,6 +61,7 @@ export default async function AdminDashboardPage() {
 
   // Calculate total billing amount (sum of totalAmount + collectionCharge)
   const billingSummary = await prisma.registration.aggregate({
+    where: { workspaceId: admin.workspaceId },
     _sum: {
       totalAmount: true,
       collectionCharge: true,

@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { toast } from "sonner";
 import { Shield, ArrowRight } from "lucide-react";
-import { adminLoginAction } from "@/app/actions/authActions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +32,12 @@ export default function AdminLoginPage() {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      const res = await adminLoginAction(data);
+      const res = await fetch("/admin/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json());
+
       if (res.success) {
         toast.success(res.message);
         router.push(res.redirect);

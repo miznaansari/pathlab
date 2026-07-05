@@ -1,7 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { logoutAction } from "@/app/actions/authActions";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -12,13 +12,12 @@ import { LogOut, Calendar, ClipboardList, UserCheck, ShieldCheck, Download, Plus
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  // Handle Logout server action
+  // Handle Logout natively in Server Component
   const handleLogout = async () => {
     "use server";
-    const res = await logoutAction();
-    if (res.success) {
-      redirect(res.redirect);
-    }
+    const cookieStore = await cookies();
+    cookieStore.delete("session_token");
+    redirect("/auth/login");
   };
 
   // Mock pathlab dashboard reports data

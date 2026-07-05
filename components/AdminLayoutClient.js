@@ -34,9 +34,10 @@ import {
   SupervisorAccount as DoctorIcon,
   CheckCircle as ApprovalsIcon,
   Logout as LogoutIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Settings as SettingsIcon,
+  People as PeopleIcon
 } from "@mui/icons-material";
-import { logoutAction } from "@/app/actions/authActions";
 
 const drawerWidth = 260;
 
@@ -126,7 +127,9 @@ export default function AdminLayoutClient({ admin, children }) {
 
   const handleLogout = async () => {
     handleProfileMenuClose();
-    const res = await logoutAction();
+    const res = await fetch("/admin/api/auth/logout", {
+      method: "POST",
+    }).then((r) => r.json());
     if (res?.success) {
       router.push(res.redirect);
     }
@@ -138,6 +141,8 @@ export default function AdminLayoutClient({ admin, children }) {
     { text: "Test Reports", path: "/admin/test-report", icon: <ReportIcon /> },
     { text: "Dr. Referral Summary", path: "/admin/doctor-summary", icon: <DoctorIcon /> },
     { text: "Manage Approvals", path: "/admin/userApprove", icon: <ApprovalsIcon /> },
+    { text: "Manage Members", path: "/admin/members", icon: <PeopleIcon /> },
+    { text: "System Settings", path: "/admin/settings", icon: <SettingsIcon /> },
   ];
 
   const drawerContent = (

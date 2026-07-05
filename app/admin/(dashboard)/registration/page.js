@@ -34,13 +34,6 @@ import {
   Add as AddIcon
 } from "@mui/icons-material";
 import { useSearchParams, useRouter } from "next/navigation";
-import {
-  getDoctors,
-  getTests,
-  createRegistration,
-  getRegistrationById,
-  updateRegistration
-} from "@/app/actions/registrationActions";
 
 export default function RegistrationPage() {
   // Page states
@@ -94,7 +87,10 @@ export default function RegistrationPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [docsRes, testsRes] = await Promise.all([getDoctors(), getTests()]);
+        const [docsRes, testsRes] = await Promise.all([
+          fetch("/admin/api/doctors").then((r) => r.json()),
+          fetch("/admin/api/tests").then((r) => r.json())
+        ]);
         if (docsRes.success) setDoctors(docsRes.doctors);
         if (testsRes.success) {
           const parsedTests = testsRes.tests.map((t) => ({
@@ -120,7 +116,7 @@ export default function RegistrationPage() {
     async function fetchReg() {
       setLoading(true);
       try {
-        const res = await getRegistrationById(parseInt(editId));
+        const res = await fetch(`/admin/api/registrations/${parseInt(editId)}`).then((r) => r.json());
         if (res.success) {
           const reg = res.registration;
           setBillOn(reg.billOn);
@@ -327,8 +323,16 @@ export default function RegistrationPage() {
       };
 
       const res = editId
-        ? await updateRegistration(parseInt(editId), payload)
-        : await createRegistration(payload);
+        ? await fetch(`/admin/api/registrations/${parseInt(editId)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).then((r) => r.json())
+        : await fetch("/admin/api/registrations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).then((r) => r.json());
 
       if (res.success) {
         showNotification(res.message, "success");

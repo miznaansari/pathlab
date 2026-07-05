@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { toast } from "sonner";
 import { UserPlus, ArrowRight } from "lucide-react";
-import { registerAction } from "@/app/actions/authActions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -48,7 +47,12 @@ export default function RegisterPage() {
     setIsLoading(true);
     setStatusMessage(null);
     try {
-      const res = await registerAction(data);
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json());
+
       if (res.success) {
         toast.success(res.message);
         setStatusMessage({

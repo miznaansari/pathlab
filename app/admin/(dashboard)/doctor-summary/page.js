@@ -25,7 +25,7 @@ import {
   Search as SearchIcon,
   RestartAlt as ResetIcon
 } from "@mui/icons-material";
-import { getDoctorReferralSummary } from "@/app/actions/registrationActions";
+// Action import removed
 
 export default function DoctorSummaryPage() {
   const [summaryData, setSummaryData] = useState([]);
@@ -43,10 +43,11 @@ export default function DoctorSummaryPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await getDoctorReferralSummary({
-        startDate: startDate ? `${startDate}T00:00:00.000Z` : undefined,
-        endDate: endDate ? `${endDate}T23:59:59.999Z` : undefined,
-      });
+      const queryParams = new URLSearchParams();
+      if (startDate) queryParams.set("startDate", `${startDate}T00:00:00.000Z`);
+      if (endDate) queryParams.set("endDate", `${endDate}T23:59:59.999Z`);
+
+      const res = await fetch(`/admin/api/doctor-summary?${queryParams.toString()}`).then((r) => r.json());
       if (res.success) {
         const parsed = res.summary.map((item) => ({
           ...item,
