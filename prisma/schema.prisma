@@ -214,6 +214,8 @@ model Registration {
 
   @@unique([workspaceId, labId])
   @@unique([workspaceId, regNo])
+  @@index([date])
+  @@index([mobileNo])
 }
 
 model RegistrationTest {
