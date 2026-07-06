@@ -22,6 +22,11 @@ export async function GET(req) {
           { workspaceId: null }
         ]
       },
+      include: {
+        parameters: {
+          orderBy: { order: "asc" }
+        }
+      },
       orderBy: { name: "asc" },
     });
 
@@ -146,10 +151,15 @@ export async function POST(req) {
       },
     });
 
+    const testWithParams = await prisma.test.findUnique({
+      where: { id: newTest.id },
+      include: { parameters: { orderBy: { order: "asc" } } }
+    });
+
     return NextResponse.json({
       success: true,
       message: "Test added successfully!",
-      test: serializeData(newTest),
+      test: serializeData(testWithParams),
     });
   } catch (error) {
     console.error("Workspace Tests POST Error:", error);

@@ -141,7 +141,7 @@ export default function AdminLayoutClient({ admin, children }) {
     { text: "Patient Registration", path: "/admin/registration", icon: <RegisterIcon /> },
     { text: "Test Reports", path: "/admin/test-report", icon: <ReportIcon /> },
     { text: "Dr. Referral Summary", path: "/admin/doctor-summary", icon: <DoctorIcon /> },
-    { text: "Manage Approvals", path: "/admin/userApprove", icon: <ApprovalsIcon /> },
+    // { text: "Manage Approvals", path: "/admin/userApprove", icon: <ApprovalsIcon /> },
     { text: "Manage Members", path: "/admin/members", icon: <PeopleIcon /> },
     {
       text: "System Settings",

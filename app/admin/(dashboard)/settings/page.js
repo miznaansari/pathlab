@@ -46,7 +46,9 @@ import {
   PictureAsPdf as PdfIcon,
   Edit as EditIcon,
   Add as AddIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  List as ListIcon,
+  Delete as DeleteIcon
 } from "@mui/icons-material";
 import { useSearchParams, useRouter } from "next/navigation";
 
@@ -97,6 +99,13 @@ function SettingsContent() {
   const [editingPrice, setEditingPrice] = useState("");
   const [editingName, setEditingName] = useState("");
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+
+  // Test parameter states
+  const [openParamsDialog, setOpenParamsDialog] = useState(false);
+  const [parameterizingTest, setParameterizingTest] = useState(null);
+  const [parametersList, setParametersList] = useState([]);
+  const [expandedParams, setExpandedParams] = useState({});
+  const [savingParams, setSavingParams] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -303,12 +312,34 @@ function SettingsContent() {
       }).then((r) => r.json());
 
       if (res.success) {
-        showToast(res.message || "Test added successfully!", "success");
+        showToast(res.message || "Test added successfully! Please configure its parameters.", "success");
         fetchTests(testPage, testSearchQuery);
         setOpenAddTestDialog(false);
         setNewTestName("");
         setNewTestCode("");
         setNewTestPrice("");
+
+        // Open parameters config immediately as the next step
+        const parsedTest = res.test;
+        setParameterizingTest(parsedTest);
+        setParametersList(parsedTest.parameters || [
+          {
+            name: "Result",
+            unit: "",
+            normalRangeDefault: "As per report",
+            minValMale: "",
+            maxValMale: "",
+            normalRangeMale: "",
+            minValFemale: "",
+            maxValFemale: "",
+            normalRangeFemale: "",
+            minValBaby: "",
+            maxValBaby: "",
+            normalRangeBaby: ""
+          }
+        ]);
+        setExpandedParams({});
+        setOpenParamsDialog(true);
       } else {
         showToast(res.message || "Failed to add test.", "error");
       }
@@ -358,6 +389,153 @@ function SettingsContent() {
       showToast("An error occurred while updating test details.", "error");
     } finally {
       setIsUpdatingPrice(false);
+    }
+  };
+
+  const handleOpenParams = (test) => {
+    setParameterizingTest(test);
+    const formattedParams = (test.parameters || []).map((p) => ({
+      name: p.name,
+      unit: p.unit || "",
+      normalRangeDefault: p.normalRangeDefault || "",
+      minValMale: p.minValMale !== null && p.minValMale !== undefined ? String(p.minValMale) : "",
+      maxValMale: p.maxValMale !== null && p.maxValMale !== undefined ? String(p.maxValMale) : "",
+      normalRangeMale: p.normalRangeMale || "",
+      minValFemale: p.minValFemale !== null && p.minValFemale !== undefined ? String(p.minValFemale) : "",
+      maxValFemale: p.maxValFemale !== null && p.maxValFemale !== undefined ? String(p.maxValFemale) : "",
+      normalRangeFemale: p.normalRangeFemale || "",
+      minValBaby: p.minValBaby !== null && p.minValBaby !== undefined ? String(p.minValBaby) : "",
+      maxValBaby: p.maxValBaby !== null && p.maxValBaby !== undefined ? String(p.maxValBaby) : "",
+      normalRangeBaby: p.normalRangeBaby || "",
+    }));
+    setParametersList(formattedParams);
+    setExpandedParams({});
+    setOpenParamsDialog(true);
+  };
+
+  const handleAddParameterRow = () => {
+    setParametersList((prev) => [
+      ...prev,
+      {
+        name: "",
+        unit: "",
+        normalRangeDefault: "",
+        minValMale: "",
+        maxValMale: "",
+        normalRangeMale: "",
+        minValFemale: "",
+        maxValFemale: "",
+        normalRangeFemale: "",
+        minValBaby: "",
+        maxValBaby: "",
+        normalRangeBaby: "",
+      },
+    ]);
+  };
+
+  const handleRemoveParameterRow = (index) => {
+    setParametersList((prev) => prev.filter((_, idx) => idx !== index));
+    setExpandedParams((prev) => {
+      const updated = { ...prev };
+      delete updated[index];
+      return updated;
+    });
+  };
+
+  const handleParamRowChange = (index, field, value) => {
+    setParametersList((prev) => {
+      const updated = [...prev];
+      const targetParam = {
+        ...updated[index],
+        [field]: value,
+      };
+
+      // Auto-fill Male range description
+      if (field === "minValMale" || field === "maxValMale") {
+        const min = field === "minValMale" ? value : targetParam.minValMale;
+        const max = field === "maxValMale" ? value : targetParam.maxValMale;
+        if (min !== "" && max !== "") {
+          targetParam.normalRangeMale = `${min} - ${max}`;
+        }
+      }
+
+      // Auto-fill Female range description
+      if (field === "minValFemale" || field === "maxValFemale") {
+        const min = field === "minValFemale" ? value : targetParam.minValFemale;
+        const max = field === "maxValFemale" ? value : targetParam.maxValFemale;
+        if (min !== "" && max !== "") {
+          targetParam.normalRangeFemale = `${min} - ${max}`;
+        }
+      }
+
+      // Auto-fill Baby range description
+      if (field === "minValBaby" || field === "maxValBaby") {
+        const min = field === "minValBaby" ? value : targetParam.minValBaby;
+        const max = field === "maxValBaby" ? value : targetParam.maxValBaby;
+        if (min !== "" && max !== "") {
+          targetParam.normalRangeBaby = `${min} - ${max}`;
+        }
+      }
+
+      updated[index] = targetParam;
+      return updated;
+    });
+  };
+
+  const toggleExpandParam = (index) => {
+    setExpandedParams((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  const handleSaveParameters = async () => {
+    if (!parameterizingTest) return;
+
+    const hasInvalid = parametersList.some((p) => !p.name.trim());
+    if (hasInvalid) {
+      showToast("Please ensure all parameters have a name.", "error");
+      return;
+    }
+
+    setSavingParams(true);
+    try {
+      const res = await fetch(`/admin/api/registrations/${parameterizingTest.id}/parameters`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parametersList: parametersList.map((p) => ({
+            name: p.name.trim(),
+            unit: p.unit || "",
+            normalRangeDefault: p.normalRangeDefault || "",
+            minValMale: p.minValMale !== "" ? parseFloat(p.minValMale) : null,
+            maxValMale: p.maxValMale !== "" ? parseFloat(p.maxValMale) : null,
+            normalRangeMale: p.normalRangeMale || "",
+            minValFemale: p.minValFemale !== "" ? parseFloat(p.minValFemale) : null,
+            maxValFemale: p.maxValFemale !== "" ? parseFloat(p.maxValFemale) : null,
+            normalRangeFemale: p.normalRangeFemale || "",
+            minValBaby: p.minValBaby !== "" ? parseFloat(p.minValBaby) : null,
+            maxValBaby: p.maxValBaby !== "" ? parseFloat(p.maxValBaby) : null,
+            normalRangeBaby: p.normalRangeBaby || "",
+          })),
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        showToast("Test parameters updated successfully!", "success");
+        fetchTests(testPage, testSearchQuery);
+        setOpenParamsDialog(false);
+        setParameterizingTest(null);
+        setParametersList([]);
+        setExpandedParams({});
+      } else {
+        showToast(res.message || "Failed to update parameters.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("An error occurred while saving parameters.", "error");
+    } finally {
+      setSavingParams(false);
     }
   };
 
@@ -566,20 +744,31 @@ function SettingsContent() {
                               )}
                             </TableCell>
                             <TableCell align="center">
-                              <Tooltip title="Modify Price">
-                                <IconButton
-                                  size="small"
-                                  color="primary"
-                                  onClick={() => {
-                                    setEditingTest(test);
-                                    setEditingPrice(String(test.price));
-                                    setEditingName(test.name);
-                                    setOpenEditPriceDialog(true);
-                                  }}
-                                >
-                                    <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
+                              <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                                <Tooltip title="Edit Details & Price">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={() => {
+                                      setEditingTest(test);
+                                      setEditingPrice(String(test.price));
+                                      setEditingName(test.name);
+                                      setOpenEditPriceDialog(true);
+                                    }}
+                                  >
+                                      <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Configure Parameters">
+                                  <IconButton
+                                    size="small"
+                                    color="secondary"
+                                    onClick={() => handleOpenParams(test)}
+                                  >
+                                    <ListIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))
@@ -833,6 +1022,193 @@ function SettingsContent() {
             disabled={isUpdatingPrice || !editingPrice || !editingName.trim()}
           >
             {isUpdatingPrice ? <CircularProgress size={24} /> : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manage Test Parameters Dialog */}
+      <Dialog open={openParamsDialog} onClose={() => setOpenParamsDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          ⚙️ Configure Parameters: {parameterizingTest?.name || "Test"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ minHeight: "40vh" }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Define the reporting parameters, standard units, and reference ranges. Expands each row to specify age/sex-specific reference margins.
+            </Typography>
+
+            {parametersList.map((param, idx) => (
+              <Box key={idx} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2, mb: 2, bgcolor: "grey.50" }}>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+                  <TextField
+                    label="Parameter Name"
+                    size="small"
+                    required
+                    value={param.name}
+                    onChange={(e) => handleParamRowChange(idx, "name", e.target.value)}
+                    sx={{ flexGrow: 2, minWidth: 200 }}
+                  />
+                  <TextField
+                    label="Unit"
+                    size="small"
+                    placeholder="e.g. g/dL"
+                    value={param.unit}
+                    onChange={(e) => handleParamRowChange(idx, "unit", e.target.value)}
+                    sx={{ flexGrow: 1, minWidth: 100 }}
+                  />
+                  <TextField
+                    label="Default Range"
+                    size="small"
+                    placeholder="e.g. 12 - 16"
+                    value={param.normalRangeDefault}
+                    onChange={(e) => handleParamRowChange(idx, "normalRangeDefault", e.target.value)}
+                    sx={{ flexGrow: 2, minWidth: 150 }}
+                  />
+                  <Button
+                    size="small"
+                    onClick={() => toggleExpandParam(idx)}
+                    variant={expandedParams[idx] ? "contained" : "outlined"}
+                  >
+                    {expandedParams[idx] ? "Hide Advanced" : "Advanced Ranges"}
+                  </Button>
+                  <IconButton color="error" onClick={() => handleRemoveParameterRow(idx)} disabled={parametersList.length === 1}>
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+
+                {expandedParams[idx] && (
+                  <Box sx={{ mt: 2, p: 2, border: "1px dashed", borderColor: "grey.300", borderRadius: 1.5, bgcolor: "#fff" }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "text.secondary" }}>
+                      Sex/Age-Specific Reference Values (Optional)
+                    </Typography>
+                    
+                    <Grid container spacing={2}>
+                      {/* Male */}
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ border: "1px solid", borderColor: "grey.200", p: 1.5, borderRadius: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "primary.main", display: "block", mb: 1 }}>
+                            Male Reference Range
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+                            <TextField
+                              label="Min"
+                              size="small"
+                              type="number"
+                              value={param.minValMale}
+                              onChange={(e) => handleParamRowChange(idx, "minValMale", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                            <TextField
+                              label="Max"
+                              size="small"
+                              type="number"
+                              value={param.maxValMale}
+                              onChange={(e) => handleParamRowChange(idx, "maxValMale", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                          </Box>
+                          <TextField
+                            label="Description (e.g. 13.5 - 17.5)"
+                            size="small"
+                            fullWidth
+                            value={param.normalRangeMale}
+                            onChange={(e) => handleParamRowChange(idx, "normalRangeMale", e.target.value)}
+                            disabled={param.minValMale !== "" && param.maxValMale !== ""}
+                          />
+                        </Box>
+                      </Grid>
+
+                      {/* Female */}
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ border: "1px solid", borderColor: "grey.200", p: 1.5, borderRadius: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "secondary.main", display: "block", mb: 1 }}>
+                            Female Reference Range
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+                            <TextField
+                              label="Min"
+                              size="small"
+                              type="number"
+                              value={param.minValFemale}
+                              onChange={(e) => handleParamRowChange(idx, "minValFemale", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                            <TextField
+                              label="Max"
+                              size="small"
+                              type="number"
+                              value={param.maxValFemale}
+                              onChange={(e) => handleParamRowChange(idx, "maxValFemale", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                          </Box>
+                          <TextField
+                            label="Description (e.g. 12.0 - 15.5)"
+                            size="small"
+                            fullWidth
+                            value={param.normalRangeFemale}
+                            onChange={(e) => handleParamRowChange(idx, "normalRangeFemale", e.target.value)}
+                            disabled={param.minValFemale !== "" && param.maxValFemale !== ""}
+                          />
+                        </Box>
+                      </Grid>
+
+                      {/* Baby/Child */}
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <Box sx={{ border: "1px solid", borderColor: "grey.200", p: 1.5, borderRadius: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "success.main", display: "block", mb: 1 }}>
+                            Baby/Child Reference Range
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+                            <TextField
+                              label="Min"
+                              size="small"
+                              type="number"
+                              value={param.minValBaby}
+                              onChange={(e) => handleParamRowChange(idx, "minValBaby", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                            <TextField
+                              label="Max"
+                              size="small"
+                              type="number"
+                              value={param.maxValBaby}
+                              onChange={(e) => handleParamRowChange(idx, "maxValBaby", e.target.value)}
+                              InputProps={{ inputProps: { step: "any" } }}
+                            />
+                          </Box>
+                          <TextField
+                            label="Description (e.g. 11.0 - 14.5)"
+                            size="small"
+                            fullWidth
+                            value={param.normalRangeBaby}
+                            onChange={(e) => handleParamRowChange(idx, "normalRangeBaby", e.target.value)}
+                            disabled={param.minValBaby !== "" && param.maxValBaby !== ""}
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+              </Box>
+            ))}
+
+            <Button variant="outlined" onClick={handleAddParameterRow} startIcon={<AddIcon />} sx={{ mt: 1 }}>
+              Add Parameter Row
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenParamsDialog(false)} color="inherit" disabled={savingParams}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveParameters}
+            variant="contained"
+            disabled={savingParams || parametersList.length === 0}
+            startIcon={savingParams ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+          >
+            {savingParams ? "Saving..." : "Save Parameters"}
           </Button>
         </DialogActions>
       </Dialog>
