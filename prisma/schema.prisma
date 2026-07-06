@@ -150,6 +150,10 @@ model Doctor {
   id                  Int            @id @default(autoincrement())
   name                String
   code                String?
+  degree              String?
+  address             String?
+  clinicName          String?
+  incentivePercent    Decimal        @db.Decimal(5, 2) @default(0.00)
   lastPaid            DateTime?
   registrations       Registration[] @relation("RefBy")
   secondRegistrations Registration[] @relation("SecondRef")

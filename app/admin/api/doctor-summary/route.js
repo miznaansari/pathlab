@@ -38,10 +38,15 @@ export async function GET(req) {
       const netAmount = totalAmount - totalDiscount;
       const collection = regs.reduce((sum, r) => sum + Number(r.receivedAmount), 0);
 
+      const incentivePercent = Number(doc.incentivePercent) || 0;
+      const incentiveAmount = (netAmount * incentivePercent) / 100;
+
       summary.push({
         id: doc.id,
         name: doc.name,
         code: doc.code || String(doc.id),
+        incentivePercent,
+        incentiveAmount,
         lastPaid: doc.lastPaid ? doc.lastPaid.toISOString() : null,
         count,
         amount: totalAmount,

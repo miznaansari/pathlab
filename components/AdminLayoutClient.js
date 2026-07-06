@@ -148,9 +148,8 @@ export default function AdminLayoutClient({ admin, children }) {
   const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Toolbar sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: [2] }}>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 800, color: "primary.main", display: "flex", alignItems: "center", gap: 1 }}>
-          🧪 PathLab Admin
-        </Typography>
+        <Box component="img" src="/logo/logobg.png" alt="PathLab Logo" sx={{ height: 64, width: "100%", borderRadius: "4px" }} />
+
         {mounted && !isMdUp && (
           <IconButton onClick={handleDrawerClose}>
             <ChevronLeftIcon />

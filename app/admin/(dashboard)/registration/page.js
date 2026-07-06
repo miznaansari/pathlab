@@ -24,7 +24,13 @@ import {
   Switch,
   CircularProgress,
   Snackbar,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+  createFilterOptions
 } from "@mui/material";
 import {
   Delete as DeleteIcon,
@@ -34,6 +40,8 @@ import {
   Add as AddIcon
 } from "@mui/icons-material";
 import { useSearchParams, useRouter } from "next/navigation";
+
+const filter = createFilterOptions();
 
 export default function RegistrationPage() {
   // Page states
@@ -61,6 +69,22 @@ export default function RegistrationPage() {
 
   const [selectedTests, setSelectedTests] = useState([]);
   const [testSearchInput, setTestSearchInput] = useState("");
+
+  // Dialog states for adding a new doctor
+  const [openAddDocDialog, setOpenAddDocDialog] = useState(false);
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocCode, setNewDocCode] = useState("");
+  const [newDocDegree, setNewDocDegree] = useState("");
+  const [newDocAddress, setNewDocAddress] = useState("");
+  const [newDocClinicName, setNewDocClinicName] = useState("");
+  const [newDocIncentive, setNewDocIncentive] = useState("0");
+  const [addDocTarget, setAddDocTarget] = useState("refBy");
+  const [isAddingDoc, setIsAddingDoc] = useState(false);
+
+  // Mobile lookup states
+  const [matchingPatients, setMatchingPatients] = useState([]);
+  const [mobileAnchorEl, setMobileAnchorEl] = useState(null);
+  const [isLookingUpMobile, setIsLookingUpMobile] = useState(false);
 
   // Payment states
   const [colType, setColType] = useState("Camp");
@@ -352,6 +376,113 @@ export default function RegistrationPage() {
     }
   };
 
+  const handleAddDoctorSave = async () => {
+    if (!newDocName.trim()) return;
+    setIsAddingDoc(true);
+    try {
+      const res = await fetch("/admin/api/doctors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newDocName.trim(),
+          code: newDocCode.trim() || null,
+          degree: newDocDegree.trim() || null,
+          address: newDocAddress.trim() || null,
+          clinicName: newDocClinicName.trim() || null,
+          incentivePercent: parseFloat(newDocIncentive) || 0,
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        showNotification(res.message || "Doctor added successfully!", "success");
+        
+        // Add new doctor to doctors option list
+        const createdDoctor = res.doctor;
+        setDoctors((prev) => {
+          const updated = [...prev, createdDoctor];
+          return updated.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        // Set selected doctor for the triggering field
+        if (addDocTarget === "refBy") {
+          setRefBy(createdDoctor);
+        } else if (addDocTarget === "secondRef") {
+          setSecondRef(createdDoctor);
+        }
+
+        // Reset dialog states
+        setOpenAddDocDialog(false);
+        setNewDocName("");
+        setNewDocCode("");
+        setNewDocDegree("");
+        setNewDocAddress("");
+        setNewDocClinicName("");
+        setNewDocIncentive("0");
+      } else {
+        showNotification(res.message || "Failed to add doctor", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification("An unexpected error occurred", "error");
+    } finally {
+      setIsAddingDoc(false);
+    }
+  };
+
+  const handleClearPatientFields = () => {
+    setTitle("Mr.");
+    setName("");
+    setGender("Male");
+    setAge("");
+    setAgeUnit("Year");
+    setCity("-NA-");
+  };
+
+  const handlePrefillPatient = (p) => {
+    setTitle(p.title || "Mr.");
+    setName(p.name || "");
+    setGender(p.gender || "Male");
+    setAge(p.age || "");
+    setAgeUnit(p.ageUnit || "Year");
+    if (p.city) setCity(p.city);
+    showNotification(`Prefilled patient details for ${p.name}.`, "success");
+  };
+
+  const handleMobileNoChange = async (e) => {
+    const val = e.target.value.replace(/\D/g, ""); // Allow only digits
+    if (val.length > 10) return; // Limit to 10 digits
+    setMobileNo(val);
+
+    if (val.length === 10) {
+      const targetInput = e.currentTarget;
+      setIsLookingUpMobile(true);
+      try {
+        const res = await fetch(`/admin/api/registrations/by-mobile?mobileNo=${val}`).then((r) => r.json());
+        if (res.success && res.patients && res.patients.length > 0) {
+          if (res.patients.length === 1) {
+            // Exactly one patient, prefill immediately
+            handlePrefillPatient(res.patients[0]);
+          } else {
+            // Multiple patients, open dropdown anchored to the input field
+            setMatchingPatients(res.patients);
+            setMobileAnchorEl(targetInput);
+          }
+        } else {
+          // New number detected (no previous registrations), clear patient fields
+          handleClearPatientFields();
+        }
+      } catch (err) {
+        console.error("Failed to lookup mobile number:", err);
+      } finally {
+        setIsLookingUpMobile(false);
+      }
+    } else {
+      // Clear dropdown if they modify the number below 10 digits
+      setMobileAnchorEl(null);
+      setMatchingPatients([]);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
@@ -401,8 +532,13 @@ export default function RegistrationPage() {
                     fullWidth
                     size="small"
                     value={mobileNo}
-                    onChange={(e) => setMobileNo(e.target.value)}
+                    onChange={handleMobileNoChange}
                     placeholder="Enter 10 digit number"
+                    InputProps={{
+                      endAdornment: isLookingUpMobile ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : null
+                    }}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
@@ -519,9 +655,54 @@ export default function RegistrationPage() {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
                     options={doctors}
-                    getOptionLabel={(option) => `${option.name} (${option.code})`}
+                    filterOptions={(options, params) => {
+                      const filtered = filter(options, params);
+                      const { inputValue } = params;
+
+                      const isExisting = options.some(
+                        (option) => inputValue.toLowerCase().trim() === option.name.toLowerCase().trim()
+                      );
+                      if (inputValue !== "" && !isExisting) {
+                        filtered.push({
+                          inputValue,
+                          name: `+ Add "${inputValue}" as Ref Doctor`,
+                          isNew: true,
+                        });
+                      }
+
+                      return filtered;
+                    }}
+                    selectOnFocus
+                    clearOnBlur
+                    handleHomeEndKeys
+                    getOptionLabel={(option) => {
+                      if (typeof option === "string") {
+                        return option;
+                      }
+                      if (option.inputValue) {
+                        return option.inputValue;
+                      }
+                      return `${option.name} (${option.code || "N/A"})`;
+                    }}
+                    renderOption={(props, option) => {
+                      const { key, ...restProps } = props;
+                      return (
+                        <li key={key || (option.isNew ? "new-opt" : option.id)} {...restProps}>
+                          {option.name}
+                        </li>
+                      );
+                    }}
                     value={refBy}
-                    onChange={(event, newValue) => setRefBy(newValue)}
+                    onChange={(event, newValue) => {
+                      if (newValue && newValue.isNew) {
+                        setNewDocName(newValue.inputValue);
+                        setNewDocCode("");
+                        setAddDocTarget("refBy");
+                        setOpenAddDocDialog(true);
+                      } else {
+                        setRefBy(newValue);
+                      }
+                    }}
                     renderInput={(params) => (
                       <TextField {...params} label="Ref By Doctor" size="small" placeholder="Select..." />
                     )}
@@ -530,9 +711,54 @@ export default function RegistrationPage() {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
                     options={doctors}
-                    getOptionLabel={(option) => `${option.name} (${option.code})`}
+                    filterOptions={(options, params) => {
+                      const filtered = filter(options, params);
+                      const { inputValue } = params;
+
+                      const isExisting = options.some(
+                        (option) => inputValue.toLowerCase().trim() === option.name.toLowerCase().trim()
+                      );
+                      if (inputValue !== "" && !isExisting) {
+                        filtered.push({
+                          inputValue,
+                          name: `+ Add "${inputValue}" as Ref Doctor`,
+                          isNew: true,
+                        });
+                      }
+
+                      return filtered;
+                    }}
+                    selectOnFocus
+                    clearOnBlur
+                    handleHomeEndKeys
+                    getOptionLabel={(option) => {
+                      if (typeof option === "string") {
+                        return option;
+                      }
+                      if (option.inputValue) {
+                        return option.inputValue;
+                      }
+                      return `${option.name} (${option.code || "N/A"})`;
+                    }}
+                    renderOption={(props, option) => {
+                      const { key, ...restProps } = props;
+                      return (
+                        <li key={key || (option.isNew ? "new-opt-second" : option.id)} {...restProps}>
+                          {option.name}
+                        </li>
+                      );
+                    }}
                     value={secondRef}
-                    onChange={(event, newValue) => setSecondRef(newValue)}
+                    onChange={(event, newValue) => {
+                      if (newValue && newValue.isNew) {
+                        setNewDocName(newValue.inputValue);
+                        setNewDocCode("");
+                        setAddDocTarget("secondRef");
+                        setOpenAddDocDialog(true);
+                      } else {
+                        setSecondRef(newValue);
+                      }
+                    }}
                     renderInput={(params) => (
                       <TextField {...params} label="2nd Ref Doctor" size="small" placeholder="Select..." />
                     )}
@@ -849,6 +1075,118 @@ export default function RegistrationPage() {
           {notification.message}
         </Alert>
       </Snackbar>
+
+      {/* Dialog for adding a new doctor */}
+      <Dialog open={openAddDocDialog} onClose={() => setOpenAddDocDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Add New Doctor</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Doctor Name"
+              fullWidth
+              size="small"
+              value={newDocName}
+              onChange={(e) => setNewDocName(e.target.value)}
+              required
+            />
+            <TextField
+              label="Doctor Code (Optional)"
+              fullWidth
+              size="small"
+              value={newDocCode}
+              onChange={(e) => setNewDocCode(e.target.value)}
+              placeholder="Will be auto-generated if left empty"
+            />
+            <TextField
+              label="Doctor Degree / Qualification (Optional)"
+              fullWidth
+              size="small"
+              value={newDocDegree}
+              onChange={(e) => setNewDocDegree(e.target.value)}
+              placeholder="e.g. MBBS, MD"
+            />
+            <TextField
+              label="Clinic Name (Optional)"
+              fullWidth
+              size="small"
+              value={newDocClinicName}
+              onChange={(e) => setNewDocClinicName(e.target.value)}
+              placeholder="e.g. City Care Center"
+            />
+            <TextField
+              label="Address (Optional)"
+              fullWidth
+              size="small"
+              value={newDocAddress}
+              onChange={(e) => setNewDocAddress(e.target.value)}
+              placeholder="e.g. 123 Main St, Delhi"
+            />
+            <TextField
+              label="Incentive (%)"
+              fullWidth
+              size="small"
+              type="number"
+              value={newDocIncentive}
+              onChange={(e) => setNewDocIncentive(e.target.value)}
+              placeholder="e.g. 50"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenAddDocDialog(false)} color="inherit" disabled={isAddingDoc}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddDoctorSave}
+            variant="contained"
+            disabled={isAddingDoc || !newDocName.trim()}
+          >
+            {isAddingDoc ? <CircularProgress size={24} /> : "Add & Select"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Patient lookup dropdown menu */}
+      <Menu
+        anchorEl={mobileAnchorEl}
+        open={Boolean(mobileAnchorEl) && matchingPatients.length > 0}
+        onClose={() => setMobileAnchorEl(null)}
+        slotProps={{
+          paper: {
+            style: {
+              maxHeight: 300,
+              width: mobileAnchorEl ? mobileAnchorEl.clientWidth : "auto",
+            },
+          },
+        }}
+      >
+        <MenuItem disabled sx={{ fontWeight: 800, fontSize: "0.75rem", textTransform: "uppercase", color: "text.secondary" }}>
+          Select Patient Profile
+        </MenuItem>
+        {matchingPatients.map((p, idx) => (
+          <MenuItem
+            key={`${p.name}-${idx}`}
+            onClick={() => {
+              handlePrefillPatient(p);
+              setMobileAnchorEl(null);
+            }}
+            sx={{ py: 1 }}
+          >
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {p.title} {p.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {p.gender}, {p.age} {p.ageUnit} {p.city && p.city !== "-NA-" ? `| ${p.city}` : ""}
+              </Typography>
+            </Box>
+          </MenuItem>
+        ))}
+        <Divider />
+        <MenuItem onClick={() => setMobileAnchorEl(null)} sx={{ color: "primary.main", fontWeight: 600, py: 1 }}>
+          + Register New Patient
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }

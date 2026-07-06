@@ -55,6 +55,8 @@ export default function DoctorSummaryPage() {
           discount: Number(item.discount) || 0,
           netAmount: Number(item.netAmount) || 0,
           collection: Number(item.collection) || 0,
+          incentivePercent: Number(item.incentivePercent) || 0,
+          incentiveAmount: Number(item.incentiveAmount) || 0,
         }));
         setSummaryData(parsed);
       }
@@ -93,6 +95,7 @@ export default function DoctorSummaryPage() {
   const totalAmount = summaryData.reduce((sum, item) => sum + item.amount, 0);
   const totalDiscount = summaryData.reduce((sum, item) => sum + item.discount, 0);
   const totalNetAmount = summaryData.reduce((sum, item) => sum + item.netAmount, 0);
+  const totalIncentive = summaryData.reduce((sum, item) => sum + item.incentiveAmount, 0);
   const totalCollection = summaryData.reduce((sum, item) => sum + item.collection, 0);
 
   return (
@@ -170,17 +173,19 @@ export default function DoctorSummaryPage() {
                 <TableCell sx={{ fontWeight: 700 }}>Ref. By (Doctor)</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Last Paid</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="right">Incentive %</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Count</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Amount (₹)</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Pat.Dis (₹)</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Net Amount (₹)</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="right">Doc.Inc (₹)</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="right">Collection (₹)</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {summaryData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     No referral activities found in this date range.
                   </TableCell>
                 </TableRow>
@@ -197,10 +202,12 @@ export default function DoctorSummaryPage() {
                       <TableCell sx={{ fontWeight: 600, color: "primary.main" }}>{item.name}</TableCell>
                       <TableCell>{item.code}</TableCell>
                       <TableCell>{item.lastPaid ? formatDate(item.lastPaid) : "-"}</TableCell>
+                      <TableCell align="right">{item.incentivePercent}%</TableCell>
                       <TableCell align="right">{item.count}</TableCell>
                       <TableCell align="right">₹{item.amount.toFixed(2)}</TableCell>
                       <TableCell align="right">₹{item.discount.toFixed(2)}</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 500 }}>₹{item.netAmount.toFixed(2)}</TableCell>
+                      <TableCell align="right" sx={{ color: "primary.dark", fontWeight: 500 }}>₹{item.incentiveAmount.toFixed(2)}</TableCell>
                       <TableCell align="right" sx={{ color: "success.main", fontWeight: 500 }}>
                         {item.collection > 0 ? `₹${item.collection.toFixed(2)}` : "0.00"}
                       </TableCell>
@@ -209,10 +216,12 @@ export default function DoctorSummaryPage() {
                   {/* Totals Row */}
                   <TableRow sx={{ bgcolor: "#f1f5f9", "& td": { fontWeight: 800 } }}>
                     <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell align="right">-</TableCell>
                     <TableCell align="right">{totalCount}</TableCell>
                     <TableCell align="right">₹{totalAmount.toFixed(2)}</TableCell>
                     <TableCell align="right">₹{totalDiscount.toFixed(2)}</TableCell>
                     <TableCell align="right">₹{totalNetAmount.toFixed(2)}</TableCell>
+                    <TableCell align="right">₹{totalIncentive.toFixed(2)}</TableCell>
                     <TableCell align="right" sx={{ color: "success.main" }}>₹{totalCollection.toFixed(2)}</TableCell>
                   </TableRow>
                 </>
