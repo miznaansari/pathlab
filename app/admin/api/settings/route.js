@@ -8,6 +8,8 @@ export async function GET() {
     const adminRecord = await prisma.admin.findUnique({
       where: { id: admin.id },
       select: {
+        name: true,
+        email: true,
         framePdfUrl: true,
         headerMargin: true,
         footerMargin: true,

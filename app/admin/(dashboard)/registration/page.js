@@ -37,7 +37,8 @@ import {
   Save as SaveIcon,
   Print as PrintIcon,
   Refresh as RefreshIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  Edit as EditIcon
 } from "@mui/icons-material";
 import { useSearchParams, useRouter } from "next/navigation";
 
@@ -80,6 +81,18 @@ export default function RegistrationPage() {
   const [newDocIncentive, setNewDocIncentive] = useState("0");
   const [addDocTarget, setAddDocTarget] = useState("refBy");
   const [isAddingDoc, setIsAddingDoc] = useState(false);
+
+  // Dialog states for adding/editing a test on the fly
+  const [openAddTestDialog, setOpenAddTestDialog] = useState(false);
+  const [newTestName, setNewTestName] = useState("");
+  const [newTestCode, setNewTestCode] = useState("");
+  const [newTestPrice, setNewTestPrice] = useState("");
+  const [isSavingTest, setIsSavingTest] = useState(false);
+
+  const [openEditTestDialog, setOpenEditTestDialog] = useState(false);
+  const [editingTest, setEditingTest] = useState(null);
+  const [editingTestName, setEditingTestName] = useState("");
+  const [editingTestPrice, setEditingTestPrice] = useState("");
 
   // Mobile lookup states
   const [matchingPatients, setMatchingPatients] = useState([]);
@@ -293,6 +306,134 @@ export default function RegistrationPage() {
     if (discountPercent > 0) {
       const amt = parseFloat(((totalAmt * discountPercent) / 100).toFixed(2));
       setDiscountAmount(amt);
+    }
+  };
+
+  // Create test on the fly
+  const handleCreateTest = async () => {
+    if (!newTestName.trim()) {
+      showNotification("Test name is required.", "error");
+      return;
+    }
+    if (!newTestPrice || isNaN(parseFloat(newTestPrice))) {
+      showNotification("Please enter a valid price.", "error");
+      return;
+    }
+
+    setIsSavingTest(true);
+    try {
+      const res = await fetch("/admin/api/tests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newTestName.trim(),
+          code: newTestCode.trim() || null,
+          price: parseFloat(newTestPrice),
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        showNotification("Test added successfully!", "success");
+        
+        const parsedTest = {
+          ...res.test,
+          price: Number(res.test.price) || 0,
+        };
+
+        // Update the master test catalog list
+        setTests((prev) => {
+          const updated = [...prev, parsedTest];
+          return updated.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        // Automatically select/add it to the registration form
+        handleAddTest(parsedTest);
+
+        // Reset state & close dialog
+        setOpenAddTestDialog(false);
+        setNewTestName("");
+        setNewTestCode("");
+        setNewTestPrice("");
+      } else {
+        showNotification(res.message || "Failed to add test.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification("An error occurred while adding test.", "error");
+    } finally {
+      setIsSavingTest(false);
+    }
+  };
+
+  // Open Edit Test Dialog
+  const handleOpenEditTest = (test) => {
+    setEditingTest(test);
+    setEditingTestName(test.name);
+    setEditingTestPrice(String(test.price));
+    setOpenEditTestDialog(true);
+  };
+
+  // Update Test Details
+  const handleUpdateTest = async () => {
+    if (!editingTest) return;
+    if (!editingTestName.trim()) {
+      showNotification("Test name is required.", "error");
+      return;
+    }
+    if (!editingTestPrice || isNaN(parseFloat(editingTestPrice))) {
+      showNotification("Please enter a valid price.", "error");
+      return;
+    }
+
+    setIsSavingTest(true);
+    try {
+      const res = await fetch("/admin/api/tests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testId: editingTest.id,
+          name: editingTestName.trim(),
+          price: parseFloat(editingTestPrice),
+        }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        showNotification("Test updated successfully!", "success");
+
+        const parsedTest = {
+          ...res.test,
+          price: Number(res.test.price) || 0,
+        };
+
+        // Update test in master tests list
+        setTests((prev) => {
+          return prev.map((t) => (t.id === parsedTest.id ? parsedTest : t))
+                     .sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        // Update test inside selectedTests array if it was selected and adjust totals
+        setSelectedTests((prev) => {
+          const updated = prev.map((t) => (t.id === parsedTest.id ? parsedTest : t));
+          const totalAmt = updated.reduce((sum, t) => sum + t.price, 0);
+          if (discountPercent > 0) {
+            const amt = parseFloat(((totalAmt * discountPercent) / 100).toFixed(2));
+            setDiscountAmount(amt);
+          }
+          return updated;
+        });
+
+        setOpenEditTestDialog(false);
+        setEditingTest(null);
+        setEditingTestName("");
+        setEditingTestPrice("");
+      } else {
+        showNotification(res.message || "Failed to update test.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification("An error occurred while updating test.", "error");
+    } finally {
+      setIsSavingTest(false);
     }
   };
 
@@ -787,14 +928,75 @@ export default function RegistrationPage() {
               </Typography>
               <Autocomplete
                 options={tests}
-                getOptionLabel={(option) => `${option.name} (${option.code}) - ₹${option.price}`}
+                getOptionLabel={(option) => {
+                  if (typeof option === "string") {
+                    return option;
+                  }
+                  if (option.inputValue) {
+                    return option.inputValue;
+                  }
+                  return `${option.name} (${option.code || "N/A"}) - ₹${option.price}`;
+                }}
+                filterOptions={(options, params) => {
+                  const filtered = filter(options, params);
+                  const { inputValue } = params;
+
+                  const isExisting = options.some(
+                    (option) => inputValue.toLowerCase().trim() === option.name.toLowerCase().trim()
+                  );
+                  if (inputValue !== "" && !isExisting) {
+                    filtered.push({
+                      inputValue,
+                      name: `+ Add "${inputValue}" as New Test`,
+                      isNew: true,
+                    });
+                  }
+
+                  return filtered;
+                }}
+                selectOnFocus
+                clearOnBlur
+                handleHomeEndKeys
                 inputValue={testSearchInput}
                 onInputChange={(event, newInputValue) => setTestSearchInput(newInputValue)}
                 onChange={(event, newValue) => {
-                  if (newValue) {
+                  if (newValue && newValue.isNew) {
+                    setNewTestName(newValue.inputValue);
+                    setNewTestCode("");
+                    setNewTestPrice("");
+                    setOpenAddTestDialog(true);
+                  } else if (newValue) {
                     handleAddTest(newValue);
                     setTestSearchInput(""); // reset input
                   }
+                }}
+                renderOption={(props, option) => {
+                  const { key, ...restProps } = props;
+                  if (option.isNew) {
+                    return (
+                      <li key={key || "new-test-opt"} {...restProps} style={{ fontWeight: 700, color: "#1a73e8" }}>
+                        {option.name}
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li key={key || option.id} {...restProps} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                      <span>
+                        {option.name} ({option.code || "N/A"}) - ₹{Number(option.price).toFixed(2)}
+                      </span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent selecting the row
+                          handleOpenEditTest(option);
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </li>
+                  );
                 }}
                 renderInput={(params) => (
                   <TextField {...params} label="Search & Add Test" size="small" placeholder="Select to add..." />
@@ -1142,6 +1344,97 @@ export default function RegistrationPage() {
             disabled={isAddingDoc || !newDocName.trim()}
           >
             {isAddingDoc ? <CircularProgress size={24} /> : "Add & Select"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog for adding a new test on the fly */}
+      <Dialog open={openAddTestDialog} onClose={() => setOpenAddTestDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Add New Test</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Test Name"
+              fullWidth
+              size="small"
+              value={newTestName}
+              onChange={(e) => setNewTestName(e.target.value)}
+              required
+            />
+            <TextField
+              label="Test Code (Optional)"
+              fullWidth
+              size="small"
+              value={newTestCode}
+              onChange={(e) => setNewTestCode(e.target.value)}
+              placeholder="Will be auto-generated if left empty"
+            />
+            <TextField
+              label="Test Price (₹)"
+              type="number"
+              fullWidth
+              size="small"
+              value={newTestPrice}
+              onChange={(e) => setNewTestPrice(e.target.value)}
+              required
+              InputProps={{ inputProps: { min: 0, step: "0.01" } }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenAddTestDialog(false)} color="inherit" disabled={isSavingTest}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateTest}
+            variant="contained"
+            disabled={isSavingTest || !newTestName.trim() || !newTestPrice}
+          >
+            {isSavingTest ? <CircularProgress size={24} /> : "Add & Select"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog for editing an existing test */}
+      <Dialog open={openEditTestDialog} onClose={() => setOpenEditTestDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Edit Test Details</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Test Name"
+              fullWidth
+              size="small"
+              value={editingTestName}
+              onChange={(e) => setEditingTestName(e.target.value)}
+              required
+            />
+            {editingTest && (
+              <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
+                Test Code: <strong>{editingTest.code || "N/A"}</strong>
+              </Typography>
+            )}
+            <TextField
+              label="Custom Workspace Price (₹)"
+              type="number"
+              fullWidth
+              size="small"
+              value={editingTestPrice}
+              onChange={(e) => setEditingTestPrice(e.target.value)}
+              required
+              InputProps={{ inputProps: { min: 0, step: "0.01" } }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenEditTestDialog(false)} color="inherit" disabled={isSavingTest}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateTest}
+            variant="contained"
+            disabled={isSavingTest || !editingTestPrice || !editingTestName.trim()}
+          >
+            {isSavingTest ? <CircularProgress size={24} /> : "Save Changes"}
           </Button>
         </DialogActions>
       </Dialog>

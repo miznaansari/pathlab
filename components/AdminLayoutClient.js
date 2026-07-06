@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Drawer,
@@ -94,6 +94,7 @@ export default function AdminLayoutClient({ admin, children }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -142,7 +143,16 @@ export default function AdminLayoutClient({ admin, children }) {
     { text: "Dr. Referral Summary", path: "/admin/doctor-summary", icon: <DoctorIcon /> },
     { text: "Manage Approvals", path: "/admin/userApprove", icon: <ApprovalsIcon /> },
     { text: "Manage Members", path: "/admin/members", icon: <PeopleIcon /> },
-    { text: "System Settings", path: "/admin/settings", icon: <SettingsIcon /> },
+    {
+      text: "System Settings",
+      path: "/admin/settings",
+      icon: <SettingsIcon />,
+      subItems: [
+        { text: "Profile Setting", path: "/admin/settings?tab=profile" },
+        { text: "Test & Parameter", path: "/admin/settings?tab=tests" },
+        { text: "PDF Frame Setting", path: "/admin/settings?tab=pdf" },
+      ]
+    },
   ];
 
   const drawerContent = (
@@ -162,42 +172,83 @@ export default function AdminLayoutClient({ admin, children }) {
           {menuItems.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
             return (
-              <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                <Link href={item.path} style={{ textDecoration: "none", width: "100%" }}>
-                  <ListItemButton
-                    onClick={() => mounted && !isMdUp && handleDrawerClose()}
-                    sx={{
-                      borderRadius: "8px",
-                      py: 1.2,
-                      px: 2,
-                      backgroundColor: isActive ? "primary.light" : "transparent",
-                      color: isActive ? "primary.contrastText" : "text.secondary",
-                      "&:hover": {
-                        backgroundColor: isActive ? "primary.main" : "rgba(15, 118, 110, 0.08)",
-                        color: isActive ? "primary.contrastText" : "primary.main",
-                        "& .MuiListItemIcon-root": {
-                          color: isActive ? "primary.contrastText" : "primary.main",
-                        },
-                      },
-                      "& .MuiListItemIcon-root": {
+              <React.Fragment key={item.text}>
+                <ListItem disablePadding sx={{ mb: 0.5 }}>
+                  <Link href={item.path} style={{ textDecoration: "none", width: "100%" }}>
+                    <ListItemButton
+                      onClick={() => mounted && !isMdUp && handleDrawerClose()}
+                      sx={{
+                        borderRadius: "8px",
+                        py: 1.2,
+                        px: 2,
+                        backgroundColor: isActive ? "primary.light" : "transparent",
                         color: isActive ? "primary.contrastText" : "text.secondary",
-                        minWidth: 40,
-                      },
-                    }}
-                  >
-                    <ListItemIcon sx={{ color: isActive ? "primary.contrastText" : "text.secondary" }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.text}
-                      primaryTypographyProps={{
-                        fontWeight: isActive ? 700 : 500,
-                        fontSize: "0.9rem",
+                        "&:hover": {
+                          backgroundColor: isActive ? "primary.main" : "rgba(15, 118, 110, 0.08)",
+                          color: isActive ? "primary.contrastText" : "primary.main",
+                          "& .MuiListItemIcon-root": {
+                            color: isActive ? "primary.contrastText" : "primary.main",
+                          },
+                        },
+                        "& .MuiListItemIcon-root": {
+                          color: isActive ? "primary.contrastText" : "text.secondary",
+                          minWidth: 40,
+                        },
                       }}
-                    />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
+                    >
+                      <ListItemIcon sx={{ color: isActive ? "primary.contrastText" : "text.secondary" }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontWeight: isActive ? 700 : 500,
+                          fontSize: "0.9rem",
+                        }}
+                      />
+                    </ListItemButton>
+                  </Link>
+                </ListItem>
+                {item.subItems && (
+                  <List component="div" disablePadding sx={{ pl: 4, mb: 1 }}>
+                    {item.subItems.map((sub) => {
+                      const searchParamsStr = sub.path.split("?")[1] || "";
+                      const tabName = searchParamsStr.split("=")[1] || "";
+                      const currentTab = searchParams.get("tab") || "profile";
+                      const isSubActive = pathname === "/admin/settings" && currentTab === tabName;
+
+                      return (
+                        <ListItem key={sub.text} disablePadding sx={{ mb: 0.5 }}>
+                          <Link href={sub.path} style={{ textDecoration: "none", width: "100%" }}>
+                            <ListItemButton
+                              onClick={() => mounted && !isMdUp && handleDrawerClose()}
+                              sx={{
+                                borderRadius: "6px",
+                                py: 0.6,
+                                px: 2,
+                                backgroundColor: isSubActive ? "rgba(15, 118, 110, 0.08)" : "transparent",
+                                color: isSubActive ? "primary.main" : "text.secondary",
+                                "&:hover": {
+                                  backgroundColor: "rgba(15, 118, 110, 0.04)",
+                                  color: "primary.main",
+                                },
+                              }}
+                            >
+                              <ListItemText
+                                primary={sub.text}
+                                primaryTypographyProps={{
+                                  fontWeight: isSubActive ? 700 : 500,
+                                  fontSize: "0.825rem",
+                                }}
+                              />
+                            </ListItemButton>
+                          </Link>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                )}
+              </React.Fragment>
             );
           })}
         </List>

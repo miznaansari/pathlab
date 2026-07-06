@@ -20,6 +20,7 @@ model Workspace {
   doctors       Doctor[]
   registrations Registration[]
   users         User[]
+  tests         Test[]
 }
 
 model SuperAdmin {
@@ -169,13 +170,18 @@ model Doctor {
 model Test {
   id            Int                @id @default(autoincrement())
   name          String
-  code          String?            @unique
+  code          String?
   price         Decimal            @db.Decimal(10, 2)
   isProcessed   Boolean            @default(false)
   registrations RegistrationTest[]
   parameters    TestParameter[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+
+  workspaceId   Int?
+  workspace     Workspace?         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, code])
 }
 
 model Registration {
