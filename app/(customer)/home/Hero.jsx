@@ -44,7 +44,7 @@ export default function Hero({
             <Container maxWidth="xl">
                 <Grid container spacing={{ xs: 6, md: 8 }} sx={{ alignItems: "center" }}>
                     {/* Hero Left Content */}
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, md: 6, lg: 8 }}>
                         <Box sx={{ pr: { md: 4 }, display: "flex", flexDirection: "column", gap: 3 }}>
                             {/* Badges/Chips */}
                             <Chip
@@ -239,7 +239,7 @@ export default function Hero({
                     </Grid>
 
                     {/* Hero Right Mockup Image */}
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, md: 6, lg: 4 }}>
                         <Box
                             sx={{
                                 position: "relative",
@@ -285,7 +285,7 @@ export default function Hero({
                                         width: "100%",
                                         height: "auto",
                                         display: "block",
-                                        maxHeight: { xs: 280, sm: 380 },
+                                        maxHeight: { xs: 300, sm: 450, md: 600 },
                                         objectFit: "cover",
                                         objectPosition: "top"
                                     }}
