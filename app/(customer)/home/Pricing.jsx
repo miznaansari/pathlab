@@ -45,7 +45,7 @@ export default function Pricing() {
             subtitle: "Monthly Plan",
             title: "Standard",
             desc: "Perfect for growing labs.",
-            price: "₹399",
+            price: "499",
             oldPrice: "₹599",
             period: "/ month",
             features: [
@@ -64,7 +64,7 @@ export default function Pricing() {
             subtitle: "Yearly Plan",
             title: "Premium Value",
             desc: "Best offer for labs.",
-            price: "₹3,999",
+            price: "₹4,999",
             oldPrice: "₹5,999",
             period: "/ year",
             features: [
