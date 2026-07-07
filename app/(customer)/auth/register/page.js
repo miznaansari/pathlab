@@ -11,29 +11,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
-import { Alert } from "@/components/ui/Alert";
 
-const registerSchema = zod
-  .object({
-    name: zod.string().min(2, "Name must be at least 2 characters"),
-    email: zod.string().min(1, "Email is required").email("Invalid email address"),
-    password: zod
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[a-z]/, "Must contain at least one lowercase letter")
-      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Must contain at least one number"),
-    confirmPassword: zod.string().min(1, "Confirm password is required"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+const registerSchema = zod.object({
+  name: zod.string().min(1, "Name is required"),
+  email: zod.string().min(1, "Email is required").email("Invalid email address"),
+  password: zod.string().min(8, "Password must be at least 8 characters long"),
+  confirmPassword: zod.string().min(1, "Confirm password is required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
-export default function RegisterPage() {
+export default function CustomerRegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(null);
 
   const {
     register,
@@ -45,7 +36,6 @@ export default function RegisterPage() {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    setStatusMessage(null);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -55,22 +45,13 @@ export default function RegisterPage() {
 
       if (res.success) {
         toast.success(res.message);
-        setStatusMessage({
-          type: "success",
-          title: "Registration Pending Email Verification",
-          text: res.message,
-        });
+        router.push("/auth/login");
       } else {
         toast.error(res.message);
-        setStatusMessage({
-          type: "danger",
-          title: "Registration Failed",
-          text: res.message,
-        });
+        setIsLoading(false);
       }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -79,32 +60,22 @@ export default function RegisterPage() {
     <div className="flex-1 flex items-center justify-center p-6 bg-mesh">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 rounded-xl bg-blue-50 border border-blue-100 mb-4">
-            <UserPlus className="h-6 w-6 text-blue-600" />
+          <div className="inline-flex items-center justify-center p-3 rounded-xl bg-teal-50 border border-teal-100 mb-4">
+            <UserPlus className="h-6 w-6 text-teal-600" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            Create an Account
+            Create Your Account
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Sign up to get started with Pathlab
+            Get started with your 3-day free trial
           </p>
         </div>
 
-        {statusMessage && (
-          <Alert
-            variant={statusMessage.type === "success" ? "success" : "danger"}
-            title={statusMessage.title}
-            className="mb-6"
-          >
-            {statusMessage.text}
-          </Alert>
-        )}
-
         <Card className="glass shadow-md">
           <CardHeader>
-            <CardTitle className="text-xl text-slate-800">Register</CardTitle>
+            <CardTitle className="text-xl text-teal-700">Claim 3-Day Free Trial</CardTitle>
             <CardDescription className="text-slate-500">
-              Provide your details below to sign up
+              No credit card required
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit(onSubmit)}>
@@ -125,7 +96,7 @@ export default function RegisterPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder="john@example.com"
                   error={errors.email?.message}
                   {...register("email")}
                 />
@@ -155,21 +126,22 @@ export default function RegisterPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" isLoading={isLoading}>
-                Sign Up
+              <Button
+                type="submit"
+                className="w-full bg-teal-600 hover:bg-teal-700 focus:ring-teal-500"
+                isLoading={isLoading}
+              >
+                Sign Up & Claim Trial
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-
-              <p className="text-sm text-center text-slate-500 mt-2">
-                Already have an account?{" "}
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={() => router.push("/auth/login")}
-                >
-                  Sign In
-                </Button>
-              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-xs text-slate-500 hover:text-slate-900"
+                onClick={() => router.push("/auth/login")}
+              >
+                Already have an account? Sign In
+              </Button>
             </CardFooter>
           </form>
         </Card>
