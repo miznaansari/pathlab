@@ -48,6 +48,7 @@ export default function Contact({
                         p: { xs: 1, sm: 3, md: 4 }
                     }}
                 >
+
                     <CardContent>
                         <Grid container spacing={4} sx={{ alignItems: "center" }}>
                             {/* Support Agent Icon Column */}
