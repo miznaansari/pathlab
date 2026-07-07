@@ -10,7 +10,7 @@ export async function POST() {
       await prisma.adminSession.delete({ where: { token: adminToken } }).catch(() => {});
       cookieStore.delete("admin_session_token");
     }
-    return NextResponse.json({ success: true, redirect: "/auth/login" });
+    return NextResponse.json({ success: true, redirect: "/admin/auth/login" });
   } catch (error) {
     console.error("Admin Logout API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -296,3 +296,11 @@ model PatientResult {
 
   @@unique([registrationId, testParameterId])
 }
+
+model Lead {
+  id        Int      @id @default(autoincrement())
+  contact   String   @unique
+  type      String   // "email" or "mobile"
+  createdAt DateTime @default(now())
+}
+
