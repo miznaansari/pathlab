@@ -9,6 +9,10 @@ const outfit = Outfit({
 });
 
 export const metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 
+    "https://pathlab-eight.vercel.app"
+  ),
   title: {
     default: "EasyTechnoMed | Laboratory Information Management System",
     template: "%s | EasyTechnoMed",
